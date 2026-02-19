@@ -5,8 +5,12 @@ import Home from "./pages/Home";
 import Catalog from "./pages/Catalog";
 import Checkout from "./pages/Checkout";
 
+import Auth from "./pages/Auth/Auth";
 import AuthCallback from "./pages/Auth/AuthCallback";
 import ResetPassword from "./pages/Auth/ResetPassword";
+
+import Profile from "./pages/Profile";
+import MyOrders from "./pages/MyOrders";
 
 import AdminLogin from "./pages/admin/AdminLogin";
 import AdminGuard from "./pages/admin/AdminGuard";
@@ -22,6 +26,11 @@ export default function App() {
           <Route path="/" element={<Home />} />
           <Route path="/catalog" element={<Catalog />} />
           <Route path="/checkout" element={<Checkout />} />
+
+          {/* User */}
+          <Route path="/auth" element={<Auth />} />
+          <Route path="/profile" element={<Profile />} />
+          <Route path="/my-orders" element={<MyOrders />} />
 
           {/* Auth */}
           <Route path="/auth/callback" element={<AuthCallback />} />

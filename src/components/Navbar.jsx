@@ -1,9 +1,24 @@
 import { Link, NavLink } from "react-router-dom";
+import { useEffect, useState } from "react";
 import { useCart } from "../store/cart";
-import { moneyCLP } from "../utils/Format"; 
+import { moneyCLP } from "../utils/Format";
+import { supabase } from "../lib/supabase";
 
 export default function Navbar({ subtitle = "Drop premium | Streetwear | Tendencia" }) {
   const { count, total } = useCart();
+  const [hasSession, setHasSession] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setHasSession(!!data?.session);
+    });
+
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      setHasSession(!!session);
+    });
+
+    return () => sub?.subscription?.unsubscribe?.();
+  }, []);
 
   const navClass = ({ isActive }) =>
     `px-3 py-2 rounded-xl text-sm border transition ${
@@ -11,6 +26,11 @@ export default function Navbar({ subtitle = "Drop premium | Streetwear | Tendenc
         ? "bg-white text-zinc-950 border-white"
         : "border-white/10 text-zinc-200 hover:bg-white/5"
     }`;
+
+  const logout = async () => {
+    await supabase.auth.signOut();
+    location.href = "/";
+  };
 
   return (
     <header className="sticky top-0 z-40 border-b border-white/10 bg-zinc-950/75 backdrop-blur">
@@ -31,12 +51,10 @@ export default function Navbar({ subtitle = "Drop premium | Streetwear | Tendenc
         </Link>
 
         <nav className="ml-auto flex items-center gap-2">
-          {/* ✅ NUEVO: Home */}
           <NavLink to="/" className={navClass} end>
             Home
           </NavLink>
 
-          {/* ✅ Catálogo ahora es /catalog */}
           <NavLink to="/catalog" className={navClass}>
             Catálogo
           </NavLink>
@@ -54,9 +72,35 @@ export default function Navbar({ subtitle = "Drop premium | Streetwear | Tendenc
             </span>
           </Link>
 
+          {hasSession ? (
+            <>
+              <NavLink to="/my-orders" className={navClass}>
+                Mis pedidos
+              </NavLink>
+
+              <NavLink to="/profile" className={navClass}>
+                Perfil
+              </NavLink>
+
+              <button
+                onClick={logout}
+                className="hidden md:inline px-3 py-2 rounded-xl text-sm border border-white/10 text-zinc-200 hover:bg-white/5 transition"
+              >
+                Salir
+              </button>
+            </>
+          ) : (
+            <Link
+              to="/auth"
+              className="hidden md:inline px-3 py-2 rounded-xl text-sm border border-white/10 text-zinc-200 hover:bg-white/5 transition"
+            >
+              Entrar
+            </Link>
+          )}
+
           <Link
             to="/admin/login"
-            className="hidden md:inline px-3 py-2 rounded-xl text-sm border border-white/10 text-zinc-200 hover:bg-white/5 transition"
+            className="hidden lg:inline px-3 py-2 rounded-xl text-sm border border-white/10 text-zinc-200 hover:bg-white/5 transition"
           >
             Admin
           </Link>

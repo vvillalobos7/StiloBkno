@@ -29,6 +29,10 @@ export default function AdminProducts() {
 
   const [file, setFile] = useState(null);
 
+  useEffect(() => {
+    console.log("ADMIN PRODUCTS LOADED ✅");
+  }, []);
+
   const imageUrl = (path) => {
     if (!path) return null;
     const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path);
@@ -56,11 +60,18 @@ export default function AdminProducts() {
     if (prodsErr) console.error(prodsErr);
     setProducts(prods ?? []);
 
+    // si no hay category_id en el form, y existen categorías, setear la primera
+    setForm((s) => ({
+      ...s,
+      category_id: s.category_id || (cats?.[0]?.id ?? ""),
+    }));
+
     setLoading(false);
   };
 
   useEffect(() => {
     loadAll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const filtered = useMemo(() => {
@@ -93,7 +104,7 @@ export default function AdminProducts() {
       id: p.id,
       name: p.name ?? "",
       description: p.description ?? "",
-      price: p.price ?? 0,
+      price: Number(p.price ?? 0),
       category_id: p.category_id ?? "",
       is_active: !!p.is_active,
       image_path: p.image_path ?? null,
@@ -120,8 +131,7 @@ export default function AdminProducts() {
 
   const save = async () => {
     if (!form.name.trim()) return alert("Nombre requerido.");
-    if (!Number.isFinite(Number(form.price)) || Number(form.price) < 0)
-      return alert("Precio inválido.");
+    if (!Number.isFinite(Number(form.price)) || Number(form.price) < 0) return alert("Precio inválido.");
 
     setSaving(true);
     try {
@@ -157,11 +167,7 @@ export default function AdminProducts() {
   };
 
   const toggleActive = async (p) => {
-    const { error } = await supabase
-      .from("products")
-      .update({ is_active: !p.is_active })
-      .eq("id", p.id);
-
+    const { error } = await supabase.from("products").update({ is_active: !p.is_active }).eq("id", p.id);
     if (error) return alert(error.message);
     loadAll();
   };
@@ -186,7 +192,6 @@ export default function AdminProducts() {
           </div>
 
           <div className="ml-auto flex items-center gap-2">
-            {/* ✅ NUEVO: Link a Pedidos */}
             <a
               href="/admin/orders"
               className="rounded-2xl border border-white/10 px-4 py-2 text-sm text-zinc-200 hover:bg-white/5"
@@ -222,33 +227,56 @@ export default function AdminProducts() {
           </div>
 
           <div className="mt-4 grid md:grid-cols-2 gap-3">
-            <input
-              className="rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-white/20"
-              placeholder="Nombre (ej: Polerón Nike Tech Fleece)"
-              value={form.name}
-              onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))}
-            />
+            <label className="grid gap-2">
+              <span className="text-xs text-zinc-400">Nombre</span>
+              <input
+                className="rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-white/20"
+                placeholder="Ej: Polerón Nike Tech Fleece"
+                value={form.name}
+                onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))}
+              />
+            </label>
 
-            <input
-              className="rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-white/20"
-              placeholder="Precio CLP (ej: 49990)"
-              type="number"
-              value={form.price}
-              onChange={(e) => setForm((s) => ({ ...s, price: e.target.value }))}
-            />
+            {/* ✅ FIX: precio con label + number real */}
+            <label className="grid gap-2">
+              <span className="text-xs text-zinc-400">Precio (CLP)</span>
+              <input
+                type="number"
+                min="0"
+                className="rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-white/20"
+                placeholder="Ej: 49990"
+                value={form.price}
+                onChange={(e) =>
+                  setForm((s) => ({
+                    ...s,
+                    price: Number(e.target.value),
+                  }))
+                }
+              />
+              {Number(form.price) > 0 ? (
+                <div className="text-[11px] text-emerald-400">
+                  Se mostrará como: ${Number(form.price).toLocaleString("es-CL")}
+                </div>
+              ) : (
+                <div className="text-[11px] text-zinc-500">Ingresa el precio en pesos chilenos.</div>
+              )}
+            </label>
 
-            <select
-              className="rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-white/20"
-              value={form.category_id || ""}
-              onChange={(e) => setForm((s) => ({ ...s, category_id: e.target.value }))}
-            >
-              <option value="">Sin categoría</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+            <label className="grid gap-2">
+              <span className="text-xs text-zinc-400">Categoría</span>
+              <select
+                className="rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-white/20"
+                value={form.category_id || ""}
+                onChange={(e) => setForm((s) => ({ ...s, category_id: e.target.value }))}
+              >
+                <option value="">Sin categoría</option>
+                {categories.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </label>
 
             <label className="rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm text-zinc-200 flex items-center justify-between gap-3">
               <span>Activo en catálogo</span>
@@ -327,10 +355,7 @@ export default function AdminProducts() {
           ) : (
             <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-3">
               {filtered.map((p) => (
-                <div
-                  key={p.id}
-                  className="rounded-3xl border border-white/10 bg-zinc-950/30 p-4 flex gap-4"
-                >
+                <div key={p.id} className="rounded-3xl border border-white/10 bg-zinc-950/30 p-4 flex gap-4">
                   <div className="h-20 w-20 rounded-2xl overflow-hidden bg-white/5 shrink-0">
                     {p.image_path ? (
                       <img className="h-full w-full object-cover" src={imageUrl(p.image_path)} alt={p.name} />

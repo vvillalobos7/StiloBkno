@@ -1,206 +1,291 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import Navbar from "../components/navbar";
 import Loading from "../components/Loading";
-import { supabase, BUSINESS_ID, STORAGE_BUCKET } from "../lib/supabase";
 import { useCart } from "../store/cart";
+import { supabase, BUSINESS_ID } from "../lib/supabase";
 import { moneyCLP } from "../utils/Format";
-import { buildWhatsAppMessage, waLink } from "../utils/Whatsapp";
+
+function normalizePhoneToWa(phone) {
+  if (!phone) return null;
+  const digits = String(phone).replace(/\D/g, "");
+  if (!digits) return null;
+  if (digits.length === 9 && digits.startsWith("9")) return `56${digits}`; // Chile
+  if (digits.startsWith("56")) return digits;
+  return digits;
+}
+
+function buildWhatsAppMessage({ orderId, customer_name, customer_phone, notes, items, total }) {
+  const lines = [];
+  lines.push(`Hola! Soy ${customer_name || "cliente"} 👟🖤`);
+  lines.push(`Acabo de realizar un pedido en StiloBkno.`);
+  lines.push(`ID Pedido: ${orderId}`);
+  lines.push("");
+  lines.push("Items:");
+  items.forEach((it) => {
+    lines.push(`• ${it.product_name_snapshot} x${it.qty} — $${moneyCLP(it.line_total)}`);
+  });
+  lines.push("");
+  lines.push(`Total: $${moneyCLP(total)}`);
+  if (notes) {
+    lines.push("");
+    lines.push(`Notas: ${notes}`);
+  }
+  lines.push("");
+  lines.push("¿Me confirmas disponibilidad y entrega? 🙌");
+  return lines.join("\n");
+}
 
 export default function Checkout() {
-  const { items, inc, dec, remove, total, clear } = useCart();
-  const [business, setBusiness] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const { items, total, count, clear } = useCart();
 
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const [user, setUser] = useState(null);
+  const [profile, setProfile] = useState(null);
+
+  const [customerName, setCustomerName] = useState("");
+  const [customerPhone, setCustomerPhone] = useState("");
   const [notes, setNotes] = useState("");
-  const [sending, setSending] = useState(false);
 
+  // Cargar usuario + profile (para autocompletar)
   useEffect(() => {
     (async () => {
-      setLoading(true);
-      const { data, error } = await supabase
-        .from("businesses")
-        .select("id,name,whatsapp_phone")
-        .eq("id", BUSINESS_ID)
+      const { data } = await supabase.auth.getUser();
+      const u = data?.user ?? null;
+      setUser(u);
+
+      if (!u) return;
+
+      const { data: prof, error } = await supabase
+        .from("profiles")
+        .select("full_name, phone")
+        .eq("id", u.id)
         .single();
 
-      if (error) console.error(error);
-      setBusiness(data);
-      setLoading(false);
+      if (!error && prof) {
+        setProfile(prof);
+        if (prof.full_name) setCustomerName(prof.full_name);
+        if (prof.phone) setCustomerPhone(prof.phone);
+      }
     })();
   }, []);
 
-  const imageUrl = (path) => {
-    if (!path) return null;
-    const { data } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path);
-    return data.publicUrl;
-  };
+  const lines = useMemo(() => {
+    return (items ?? []).map((it) => {
+      const qty = Number(it.qty ?? 1);
+      const price = Number(it.price ?? 0);
+      return {
+        product_id: it.id,
+        product_name_snapshot: it.name,
+        unit_price_snapshot: price,
+        qty,
+        line_total: price * qty,
+      };
+    });
+  }, [items]);
 
-  const itemsForMessage = useMemo(
-    () => items.map((it) => ({ name: it.name, qty: it.qty, price: it.price })),
-    [items]
-  );
+  const canCheckout = count > 0 && customerName.trim() && customerPhone.trim();
 
-  const send = async () => {
-    if (!business) return;
-    if (items.length === 0) return alert("Tu carrito está vacío.");
+  const placeOrder = async () => {
+    if (!canCheckout) {
+      return alert("Completa nombre, teléfono y agrega productos al carrito.");
+    }
 
-    setSending(true);
+    setLoading(true);
     try {
-      // 1) crear pedido
+      // obtener user actual en tiempo real (por si cambió)
+      const { data: authData } = await supabase.auth.getUser();
+      const currentUser = authData?.user ?? null;
+
+      // 1) insert order
+      const orderPayload = {
+        business_id: BUSINESS_ID,
+        user_id: currentUser?.id ?? null, // ✅ CLAVE
+        customer_name: customerName.trim(),
+        customer_phone: customerPhone.trim(),
+        notes: notes.trim() || null,
+        total: Number(total),
+        status: "new",
+      };
+
       const { data: order, error: orderErr } = await supabase
         .from("orders")
-        .insert({
-          business_id: BUSINESS_ID,
-          customer_name: name || null,
-          customer_phone: phone || null,
-          notes: notes || null,
-          total,
-          status: "new",
-        })
-        .select("*")
+        .insert(orderPayload)
+        .select("id")
         .single();
 
       if (orderErr) throw orderErr;
 
-      // 2) items del pedido
-      const rows = items.map((it) => ({
+      // 2) insert order_items
+      const itemsPayload = lines.map((l) => ({
+        business_id: BUSINESS_ID,
         order_id: order.id,
-        product_id: it.id,
-        product_name_snapshot: it.name,
-        unit_price_snapshot: it.price,
-        qty: it.qty,
-        line_total: it.price * it.qty,
+        product_id: l.product_id,
+        product_name_snapshot: l.product_name_snapshot,
+        unit_price_snapshot: l.unit_price_snapshot,
+        qty: l.qty,
+        line_total: l.line_total,
       }));
 
-      const { error: itemsErr } = await supabase.from("order_items").insert(rows);
-      if (itemsErr) throw itemsErr;
+      if (itemsPayload.length > 0) {
+        const { error: itemsErr } = await supabase.from("order_items").insert(itemsPayload);
+        if (itemsErr) throw itemsErr;
+      }
 
-      // 3) abrir whatsapp
-      const msg = buildWhatsAppMessage({
-        storeName: business.name ?? "StiloBkno",
-        customer: { name, phone },
-        items: itemsForMessage,
-        total,
-        notes,
+      // 3) limpiar carrito
+      clear();
+
+      // 4) enviar a WhatsApp
+      const wa = normalizePhoneToWa(customerPhone);
+      const message = buildWhatsAppMessage({
+        orderId: order.id,
+        customer_name: customerName.trim(),
+        customer_phone: customerPhone.trim(),
+        notes: notes.trim(),
+        items: itemsPayload,
+        total: Number(total),
       });
 
-      window.open(waLink(business.whatsapp_phone, msg), "_blank");
-      clear();
+      // Si no tienes número tienda configurado, abre WhatsApp sin destinatario (user elige contacto)
+      // Si quieres número fijo (recomendado), dime tu número y lo dejamos hardcodeado/config en env.
+      const storeNumber = null; // ej: "56912345678"
+      const link = storeNumber
+        ? `https://wa.me/${storeNumber}?text=${encodeURIComponent(message)}`
+        : `https://wa.me/${wa}?text=${encodeURIComponent(message)}`;
+
+      window.open(link, "_blank");
+
+      alert("Pedido creado ✅ Revisa WhatsApp para coordinar.");
+
     } catch (e) {
       console.error(e);
-      alert("Error enviando pedido. Revisa consola.");
+      alert(`Error creando pedido: ${e.message ?? e}`);
     } finally {
-      setSending(false);
+      setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen">
-      <Navbar subtitle="Checkout • Pedido por WhatsApp" />
+    <div className="min-h-screen bg-zinc-950 text-zinc-100">
+      <Navbar subtitle="Checkout • Confirma y coordina por WhatsApp" />
 
       <main className="mx-auto max-w-6xl px-4 py-8">
-        {loading ? (
-          <Loading label="Cargando checkout..." />
-        ) : (
-          <div className="grid lg:grid-cols-3 gap-6">
-            <section className="lg:col-span-2">
-              <h2 className="text-2xl font-extrabold tracking-tight">Tu carrito</h2>
-
-              <div className="mt-4 space-y-3">
-                {items.length === 0 ? (
-                  <div className="rounded-3xl border border-white/10 bg-zinc-900/30 p-6 text-zinc-300">
-                    Carrito vacío. Vuelve al catálogo y agrega productos.
-                  </div>
-                ) : (
-                  items.map((it) => (
-                    <div
-                      key={it.id}
-                      className="rounded-3xl border border-white/10 bg-zinc-900/30 p-4 flex items-center gap-4"
-                    >
-                      <div className="h-20 w-20 rounded-2xl overflow-hidden bg-white/5 shrink-0">
-                        {it.image_path ? (
-                          <img className="h-full w-full object-cover" src={imageUrl(it.image_path)} alt={it.name} />
-                        ) : null}
-                      </div>
-
-                      <div className="min-w-0 flex-1">
-                        <div className="font-semibold truncate">{it.name}</div>
-                        <div className="text-xs text-zinc-400">${moneyCLP(it.price)} c/u</div>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <button className="rounded-xl border border-white/10 px-3 py-2 hover:bg-white/5" onClick={() => dec(it.id)}>
-                          −
-                        </button>
-                        <div className="w-8 text-center font-semibold">{it.qty}</div>
-                        <button className="rounded-xl border border-white/10 px-3 py-2 hover:bg-white/5" onClick={() => inc(it.id)}>
-                          +
-                        </button>
-                      </div>
-
-                      <div className="w-28 text-right font-extrabold">
-                        ${moneyCLP(it.price * it.qty)}
-                      </div>
-
-                      <button
-                        className="rounded-xl border border-white/10 px-3 py-2 hover:bg-white/5 text-zinc-200"
-                        onClick={() => remove(it.id)}
-                        title="Quitar"
-                      >
-                        🗑
-                      </button>
-                    </div>
-                  ))
-                )}
+        <div className="grid lg:grid-cols-3 gap-4">
+          {/* Form */}
+          <section className="lg:col-span-2 rounded-3xl border border-white/10 bg-zinc-900/30 p-6">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h1 className="text-2xl font-extrabold tracking-tight">Checkout</h1>
+                <p className="text-sm text-zinc-400 mt-1">
+                  Completa tus datos y enviamos el pedido por WhatsApp.
+                </p>
               </div>
-            </section>
 
-            <aside className="lg:col-span-1">
-              <div className="rounded-3xl border border-white/10 bg-zinc-900/30 p-5 sticky top-24">
-                <div className="flex items-center justify-between">
-                  <div className="text-sm text-zinc-300">Total</div>
-                  <div className="text-2xl font-extrabold">${moneyCLP(total)}</div>
-                </div>
-
-                <div className="mt-4 grid gap-3">
-                  <input
-                    className="rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-white/20"
-                    placeholder="Tu nombre (opcional)"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                  />
-                  <input
-                    className="rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-white/20"
-                    placeholder="Teléfono (opcional)"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                  />
-                  <textarea
-                    className="rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-white/20"
-                    rows={4}
-                    placeholder="Notas (talla, color, dirección, etc.)"
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                  />
-                </div>
-
-                <button
-                  disabled={sending || items.length === 0}
-                  onClick={send}
-                  className="mt-4 w-full rounded-2xl bg-emerald-500 text-zinc-950 font-extrabold py-3 hover:opacity-90 disabled:opacity-60"
+              {user ? (
+                <Link
+                  to="/my-orders"
+                  className="rounded-2xl border border-white/10 px-4 py-2 text-sm text-zinc-200 hover:bg-white/5"
                 >
-                  {sending ? "Enviando..." : "Enviar pedido por WhatsApp"}
-                </button>
+                  Mis pedidos
+                </Link>
+              ) : (
+                <Link
+                  to="/auth"
+                  className="rounded-2xl border border-white/10 px-4 py-2 text-sm text-zinc-200 hover:bg-white/5"
+                >
+                  Iniciar sesión
+                </Link>
+              )}
+            </div>
 
-                <div className="mt-3 text-xs text-zinc-400">
-                  El pedido también queda guardado en tu panel admin.
+            <div className="mt-6 grid gap-4">
+              <label className="grid gap-2">
+                <span className="text-xs text-zinc-400">Nombre</span>
+                <input
+                  className="rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-white/20"
+                  value={customerName}
+                  onChange={(e) => setCustomerName(e.target.value)}
+                  placeholder="Ej: Vicente Alonso"
+                />
+              </label>
+
+              <label className="grid gap-2">
+                <span className="text-xs text-zinc-400">Teléfono</span>
+                <input
+                  className="rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-white/20"
+                  value={customerPhone}
+                  onChange={(e) => setCustomerPhone(e.target.value)}
+                  placeholder="Ej: +56 9 1234 5678"
+                />
+                <span className="text-[11px] text-zinc-500">
+                  Tip: para WhatsApp ideal +56 9 XXXXXXXX.
+                </span>
+              </label>
+
+              <label className="grid gap-2">
+                <span className="text-xs text-zinc-400">Notas (talla, color, comuna, etc.)</span>
+                <textarea
+                  rows={4}
+                  className="rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-white/20"
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Ej: Talla L, color negro, retiro en metro..."
+                />
+              </label>
+
+              <button
+                onClick={placeOrder}
+                disabled={!canCheckout || loading}
+                className="rounded-2xl bg-white text-zinc-950 font-extrabold px-6 py-3 hover:opacity-90 disabled:opacity-60"
+              >
+                {loading ? "Creando pedido..." : "Crear pedido y enviar a WhatsApp"}
+              </button>
+
+              <div className="text-xs text-zinc-500">
+                Al crear tu pedido, podrás ver su estado en “Mis pedidos” (si estás logueado).
+              </div>
+            </div>
+          </section>
+
+          {/* Summary */}
+          <aside className="rounded-3xl border border-white/10 bg-zinc-900/30 p-6 h-fit">
+            <div className="text-xs text-zinc-400">Resumen</div>
+            <div className="mt-1 text-2xl font-extrabold tracking-tight">Carrito</div>
+
+            {count === 0 ? (
+              <div className="mt-4 text-sm text-zinc-400">
+                Tu carrito está vacío.{" "}
+                <Link className="underline text-zinc-200" to="/catalog">
+                  Volver al catálogo
+                </Link>
+              </div>
+            ) : (
+              <div className="mt-4 space-y-3">
+                {items.map((it) => (
+                  <div key={it.id} className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="font-semibold truncate">{it.name}</div>
+                      <div className="text-xs text-zinc-400">
+                        x{it.qty} • ${moneyCLP(it.price)}
+                      </div>
+                    </div>
+                    <div className="font-extrabold whitespace-nowrap">
+                      ${moneyCLP(Number(it.price) * Number(it.qty))}
+                    </div>
+                  </div>
+                ))}
+
+                <div className="pt-4 border-t border-white/10 flex items-center justify-between">
+                  <div className="text-sm text-zinc-400">Total</div>
+                  <div className="text-xl font-extrabold">${moneyCLP(total)}</div>
                 </div>
               </div>
-            </aside>
-          </div>
-        )}
+            )}
+          </aside>
+        </div>
+
+        {loading ? <Loading label="Procesando..." /> : null}
       </main>
     </div>
   );
