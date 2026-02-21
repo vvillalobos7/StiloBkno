@@ -13,18 +13,26 @@ const STATUS_LABEL = {
   cancelled: "Cancelado",
 };
 
+const STATUS_META = {
+  new: { icon: "🧾" },
+  confirmed: { icon: "✅" },
+  shipped: { icon: "🚚" },
+  delivered: { icon: "📦" },
+  cancelled: { icon: "⛔" },
+};
+
 const badgeClass = (status) => {
   switch (status) {
     case "new":
-      return "bg-amber-400/20 text-amber-200 border border-amber-400/20";
+      return "bg-amber-400/15 text-amber-200 border border-amber-400/20";
     case "confirmed":
-      return "bg-sky-400/20 text-sky-200 border border-sky-400/20";
+      return "bg-sky-400/15 text-sky-200 border border-sky-400/20";
     case "shipped":
-      return "bg-violet-400/20 text-violet-200 border border-violet-400/20";
+      return "bg-violet-400/15 text-violet-200 border border-violet-400/20";
     case "delivered":
-      return "bg-emerald-400/20 text-emerald-200 border border-emerald-400/20";
+      return "bg-emerald-400/15 text-emerald-200 border border-emerald-400/20";
     case "cancelled":
-      return "bg-rose-400/20 text-rose-200 border border-rose-400/20";
+      return "bg-rose-400/15 text-rose-200 border border-rose-400/20";
     default:
       return "bg-white/10 text-zinc-200 border border-white/10";
   }
@@ -37,10 +45,33 @@ function stepIndex(status) {
 
 function prettyDate(iso) {
   try {
-    return new Date(iso).toLocaleString("es-CL");
+    return new Date(iso).toLocaleString("es-CL", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   } catch {
     return iso;
   }
+}
+
+function StatusBadge({ status }) {
+  const meta = STATUS_META[status] ?? { icon: "ℹ️" };
+  return (
+    <span
+      className={[
+        "inline-flex items-center gap-2 text-xs px-3 py-1.5 rounded-full",
+        "backdrop-blur",
+        badgeClass(status),
+      ].join(" ")}
+      title={STATUS_LABEL[status] ?? status}
+    >
+      <span aria-hidden="true">{meta.icon}</span>
+      <span className="font-semibold">{STATUS_LABEL[status] ?? status}</span>
+    </span>
+  );
 }
 
 function Timeline({ status }) {
@@ -84,7 +115,7 @@ function Timeline({ status }) {
 
       {cancelled ? (
         <div className="mt-3 text-xs text-rose-200 border border-rose-400/20 bg-rose-400/10 rounded-2xl px-3 py-2">
-          Pedido cancelado.
+          ⛔ Pedido cancelado.
         </div>
       ) : null}
     </div>
@@ -99,6 +130,14 @@ export default function AdminOrders() {
 
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+
+  const [toast, setToast] = useState(null); // { type: "ok"|"err", msg: string }
+
+  const showToast = (type, msg) => {
+    setToast({ type, msg });
+    window.clearTimeout(showToast._t);
+    showToast._t = window.setTimeout(() => setToast(null), 2400);
+  };
 
   const load = async () => {
     setLoading(true);
@@ -137,6 +176,10 @@ export default function AdminOrders() {
   }, [orders, q, statusFilter]);
 
   const updateStatus = async (orderId, nextStatus) => {
+    // Evita update innecesario si es el mismo valor
+    const current = orders.find((x) => x.id === orderId)?.status;
+    if (current === nextStatus) return;
+
     setSavingId(orderId);
     try {
       const { error } = await supabase.from("orders").update({ status: nextStatus }).eq("id", orderId);
@@ -144,8 +187,14 @@ export default function AdminOrders() {
 
       // actualización local rápida
       setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, status: nextStatus } : o)));
+
+      showToast("ok", `Estado actualizado a: ${STATUS_LABEL[nextStatus] ?? nextStatus}`);
+
+      // refresco suave (por si cambió algo más en DB)
+      setTimeout(() => load(), 450);
     } catch (e) {
       console.error(e);
+      showToast("err", e.message ?? String(e));
       alert(e.message ?? e);
     } finally {
       setSavingId(null);
@@ -154,6 +203,22 @@ export default function AdminOrders() {
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
+      {/* Toast */}
+      {toast ? (
+        <div className="fixed top-4 right-4 z-[100]">
+          <div
+            className={[
+              "rounded-2xl border px-4 py-3 text-sm shadow-lg backdrop-blur",
+              toast.type === "ok"
+                ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-100"
+                : "border-rose-400/20 bg-rose-400/10 text-rose-100",
+            ].join(" ")}
+          >
+            {toast.msg}
+          </div>
+        </div>
+      ) : null}
+
       <header className="border-b border-white/10 bg-zinc-950/75 backdrop-blur sticky top-0 z-40">
         <div className="mx-auto max-w-6xl px-4 py-4 flex items-center gap-3">
           <div className="h-10 w-10 rounded-2xl bg-white text-zinc-950 grid place-items-center font-black">
@@ -165,6 +230,13 @@ export default function AdminOrders() {
           </div>
 
           <div className="ml-auto flex items-center gap-2">
+            <button
+              onClick={load}
+              className="rounded-2xl border border-white/10 px-4 py-2 text-sm text-zinc-200 hover:bg-white/5"
+            >
+              Actualizar
+            </button>
+
             <a
               href="/admin/products"
               className="rounded-2xl border border-white/10 px-4 py-2 text-sm text-zinc-200 hover:bg-white/5"
@@ -225,9 +297,7 @@ export default function AdminOrders() {
                       <div className="text-xs text-zinc-400 mt-1">{prettyDate(o.created_at)}</div>
 
                       <div className="mt-3 flex flex-wrap items-center gap-2">
-                        <span className={`text-xs px-3 py-1 rounded-full ${badgeClass(o.status)}`}>
-                          {STATUS_LABEL[o.status] ?? o.status}
-                        </span>
+                        <StatusBadge status={o.status} />
                         <span className="text-xs text-zinc-500">•</span>
                         <span className="text-xs text-zinc-400">
                           Cliente: <span className="text-zinc-200 font-semibold">{o.customer_name ?? "—"}</span>
@@ -250,8 +320,7 @@ export default function AdminOrders() {
                         {(o.order_items ?? []).map((it) => (
                           <div key={it.id} className="flex items-center justify-between text-sm">
                             <div className="text-zinc-200">
-                              {it.product_name_snapshot}{" "}
-                              <span className="text-zinc-500">x{it.qty}</span>
+                              {it.product_name_snapshot} <span className="text-zinc-500">x{it.qty}</span>
                             </div>
                             <div className="font-semibold text-zinc-200">${moneyCLP(it.line_total)}</div>
                           </div>
@@ -282,7 +351,7 @@ export default function AdminOrders() {
                           <div className="mt-2 text-xs text-zinc-500">Guardando...</div>
                         ) : (
                           <div className="mt-2 text-xs text-zinc-500">
-                            Al cambiar el estado, luego enviaremos email automático ✅
+                            Cambiar estado → Email automático ✅
                           </div>
                         )}
                       </div>

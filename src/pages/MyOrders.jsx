@@ -14,18 +14,26 @@ const STATUS_LABEL = {
   cancelled: "Cancelado",
 };
 
+const STATUS_META = {
+  new: { icon: "🧾", tone: "amber" },
+  confirmed: { icon: "✅", tone: "sky" },
+  shipped: { icon: "🚚", tone: "violet" },
+  delivered: { icon: "📦", tone: "emerald" },
+  cancelled: { icon: "⛔", tone: "rose" },
+};
+
 const badgeClass = (status) => {
   switch (status) {
     case "new":
-      return "bg-amber-400/20 text-amber-200 border border-amber-400/20";
+      return "bg-amber-400/15 text-amber-200 border border-amber-400/20";
     case "confirmed":
-      return "bg-sky-400/20 text-sky-200 border border-sky-400/20";
+      return "bg-sky-400/15 text-sky-200 border border-sky-400/20";
     case "shipped":
-      return "bg-violet-400/20 text-violet-200 border border-violet-400/20";
+      return "bg-violet-400/15 text-violet-200 border border-violet-400/20";
     case "delivered":
-      return "bg-emerald-400/20 text-emerald-200 border border-emerald-400/20";
+      return "bg-emerald-400/15 text-emerald-200 border border-emerald-400/20";
     case "cancelled":
-      return "bg-rose-400/20 text-rose-200 border border-rose-400/20";
+      return "bg-rose-400/15 text-rose-200 border border-rose-400/20";
     default:
       return "bg-white/10 text-zinc-200 border border-white/10";
   }
@@ -38,56 +46,114 @@ function stepIndex(status) {
 
 function prettyDate(iso) {
   try {
-    return new Date(iso).toLocaleString("es-CL");
+    return new Date(iso).toLocaleString("es-CL", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   } catch {
     return iso;
   }
+}
+
+function StatusBadge({ status }) {
+  const meta = STATUS_META[status] ?? { icon: "ℹ️", tone: "zinc" };
+  return (
+    <span
+      className={[
+        "inline-flex items-center gap-2 text-xs px-3 py-1.5 rounded-full",
+        "backdrop-blur",
+        badgeClass(status),
+      ].join(" ")}
+      title={STATUS_LABEL[status] ?? status}
+    >
+      <span aria-hidden="true">{meta.icon}</span>
+      <span className="font-semibold">{STATUS_LABEL[status] ?? status}</span>
+    </span>
+  );
 }
 
 function Timeline({ status }) {
   const cancelled = status === "cancelled";
   const idx = stepIndex(status);
 
-  return (
-    <div className="mt-4">
-      <div className="text-xs text-zinc-500 mb-2">Progreso</div>
+  const currentLabel = STATUS_LABEL[status] ?? status;
 
-      <div className="grid grid-cols-4 gap-2">
-        {STATUS_FLOW.map((s, i) => {
-          const done = !cancelled && i <= idx;
-          return (
-            <div key={s} className="flex flex-col gap-2">
-              <div className="flex items-center gap-2">
-                <div
-                  className={`h-3 w-3 rounded-full ${
-                    cancelled ? "bg-rose-400/50" : done ? "bg-white" : "bg-white/20"
-                  }`}
-                />
-                <div
-                  className={`h-[2px] flex-1 ${
-                    i === STATUS_FLOW.length - 1
-                      ? "bg-transparent"
-                      : cancelled
-                      ? "bg-rose-400/20"
-                      : done
-                      ? "bg-white/50"
-                      : "bg-white/10"
-                  }`}
-                />
-              </div>
-              <div className={`text-[11px] ${done ? "text-zinc-200" : "text-zinc-500"}`}>
-                {STATUS_LABEL[s]}
-              </div>
-            </div>
-          );
-        })}
+  return (
+    <div className="mt-5">
+      <div className="flex items-center justify-between gap-3">
+        <div className="text-xs text-zinc-500">Tracking</div>
+
+        <div
+          className={[
+            "text-[11px] px-3 py-1 rounded-full border",
+            cancelled
+              ? "border-rose-400/20 bg-rose-400/10 text-rose-200"
+              : "border-white/10 bg-white/5 text-zinc-200",
+          ].join(" ")}
+        >
+          Estado actual: <span className="font-semibold">{currentLabel}</span>
+        </div>
       </div>
 
-      {cancelled ? (
-        <div className="mt-3 text-xs text-rose-200 border border-rose-400/20 bg-rose-400/10 rounded-2xl px-3 py-2">
-          Este pedido fue cancelado.
+      <div className="mt-3 rounded-2xl border border-white/10 bg-zinc-950/30 p-4">
+        <div className="grid grid-cols-4 gap-3">
+          {STATUS_FLOW.map((s, i) => {
+            const done = !cancelled && i <= idx;
+            const isCurrent = !cancelled && i === idx;
+
+            return (
+              <div key={s} className="flex flex-col gap-2">
+                <div className="flex items-center gap-2">
+                  <div
+                    className={[
+                      "h-3.5 w-3.5 rounded-full border",
+                      cancelled
+                        ? "bg-rose-400/30 border-rose-400/30"
+                        : done
+                        ? "bg-white border-white/60"
+                        : "bg-white/10 border-white/10",
+                      isCurrent ? "ring-4 ring-white/10" : "",
+                    ].join(" ")}
+                  />
+                  <div
+                    className={[
+                      "h-[2px] flex-1",
+                      i === STATUS_FLOW.length - 1
+                        ? "bg-transparent"
+                        : cancelled
+                        ? "bg-rose-400/20"
+                        : done
+                        ? "bg-white/40"
+                        : "bg-white/10",
+                    ].join(" ")}
+                  />
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <div className={done ? "text-zinc-200" : "text-zinc-500"}>
+                    <span className="text-[11px]">{STATUS_LABEL[s]}</span>
+                  </div>
+
+                  {isCurrent ? (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-white text-zinc-950 font-extrabold">
+                      AHORA
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+            );
+          })}
         </div>
-      ) : null}
+
+        {cancelled ? (
+          <div className="mt-4 text-xs text-rose-200 border border-rose-400/20 bg-rose-400/10 rounded-2xl px-3 py-2">
+            ⛔ Este pedido fue cancelado.
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -149,8 +215,8 @@ export default function MyOrders() {
             {orders.length > 0 ? (
               <div className="md:ml-auto flex flex-wrap gap-2">
                 {Object.entries(countByStatus).map(([s, n]) => (
-                  <span key={s} className={`text-xs px-3 py-1 rounded-full ${badgeClass(s)}`}>
-                    {STATUS_LABEL[s] ?? s}: {n}
+                  <span key={s} className={`text-xs px-3 py-1.5 rounded-full ${badgeClass(s)}`}>
+                    {STATUS_LABEL[s] ?? s}: <span className="font-semibold">{n}</span>
                   </span>
                 ))}
               </div>
@@ -176,25 +242,33 @@ export default function MyOrders() {
           ) : (
             <div className="mt-6 space-y-3">
               {orders.map((o) => (
-                <div key={o.id} className="rounded-3xl border border-white/10 bg-zinc-950/30 p-4">
-                  <div className="flex flex-col md:flex-row md:items-start gap-3">
+                <div key={o.id} className="rounded-3xl border border-white/10 bg-zinc-950/30 p-5">
+                  {/* Header */}
+                  <div className="flex flex-col md:flex-row md:items-start gap-4">
                     <div className="min-w-0 flex-1">
-                      <div className="text-xs text-zinc-500">ID: {o.id}</div>
-                      <div className="text-xs text-zinc-400 mt-1">{prettyDate(o.created_at)}</div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <StatusBadge status={o.status} />
+                        <span className="text-xs text-zinc-600">•</span>
+                        <span className="text-xs text-zinc-400">{prettyDate(o.created_at)}</span>
+                      </div>
 
-                      <div className="mt-3 flex items-center gap-2">
-                        <span className={`text-xs px-3 py-1 rounded-full ${badgeClass(o.status)}`}>
-                          {STATUS_LABEL[o.status] ?? o.status}
-                        </span>
-                        <span className="text-xs text-zinc-500">•</span>
-                        <span className="text-xs text-zinc-400">
-                          Total: <span className="text-zinc-200 font-semibold">${moneyCLP(o.total)}</span>
-                        </span>
+                      <div className="mt-3 flex flex-col sm:flex-row sm:items-end gap-2 sm:gap-6">
+                        <div className="min-w-0">
+                          <div className="text-xs text-zinc-500">ID</div>
+                          <div className="text-sm text-zinc-200 truncate">{o.id}</div>
+                        </div>
+
+                        <div className="sm:ml-auto text-right">
+                          <div className="text-xs text-zinc-500">Total</div>
+                          <div className="text-xl font-extrabold tracking-tight">
+                            ${moneyCLP(o.total)}
+                          </div>
+                        </div>
                       </div>
 
                       {o.notes ? (
-                        <div className="text-xs text-zinc-300 mt-3 border border-white/10 bg-white/5 rounded-2xl px-3 py-2">
-                          📝 {o.notes}
+                        <div className="mt-4 text-xs text-zinc-200 border border-white/10 bg-white/5 rounded-2xl px-3 py-2">
+                          <span className="text-zinc-400">📝 Nota:</span> {o.notes}
                         </div>
                       ) : null}
 
@@ -202,16 +276,31 @@ export default function MyOrders() {
                     </div>
                   </div>
 
-                  <div className="mt-4 border-t border-white/10 pt-4 space-y-2">
-                    {(o.order_items ?? []).map((it) => (
-                      <div key={it.id} className="flex items-center justify-between text-sm">
-                        <div className="text-zinc-200">
-                          {it.product_name_snapshot}{" "}
-                          <span className="text-zinc-500">x{it.qty}</span>
+                  {/* Items */}
+                  <div className="mt-5 border-t border-white/10 pt-4">
+                    <div className="text-xs text-zinc-500 mb-3">Detalle</div>
+
+                    <div className="space-y-2">
+                      {(o.order_items ?? []).map((it) => (
+                        <div
+                          key={it.id}
+                          className="flex items-start justify-between gap-3 rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2"
+                        >
+                          <div className="min-w-0">
+                            <div className="text-sm text-zinc-200 truncate">
+                              {it.product_name_snapshot}
+                            </div>
+                            <div className="text-xs text-zinc-500 mt-0.5">
+                              {moneyCLP(it.unit_price_snapshot)} c/u • x{it.qty}
+                            </div>
+                          </div>
+
+                          <div className="text-sm font-semibold text-zinc-200 whitespace-nowrap">
+                            ${moneyCLP(it.line_total)}
+                          </div>
                         </div>
-                        <div className="font-semibold text-zinc-200">${moneyCLP(it.line_total)}</div>
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
                 </div>
               ))}
