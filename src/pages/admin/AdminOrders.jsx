@@ -237,6 +237,14 @@ export default function AdminOrders() {
               Actualizar
             </button>
 
+            {/* ✅ NUEVO: Dashboard */}
+            <a
+              href="/admin/dashboard"
+              className="rounded-2xl border border-white/10 px-4 py-2 text-sm text-zinc-200 hover:bg-white/5"
+            >
+              Dashboard
+            </a>
+
             <a
               href="/admin/products"
               className="rounded-2xl border border-white/10 px-4 py-2 text-sm text-zinc-200 hover:bg-white/5"
@@ -350,9 +358,7 @@ export default function AdminOrders() {
                         {savingId === o.id ? (
                           <div className="mt-2 text-xs text-zinc-500">Guardando...</div>
                         ) : (
-                          <div className="mt-2 text-xs text-zinc-500">
-                            Cambiar estado → Email automático ✅
-                          </div>
+                          <div className="mt-2 text-xs text-zinc-500">Cambiar estado → Email automático ✅</div>
                         )}
                       </div>
                     </div>

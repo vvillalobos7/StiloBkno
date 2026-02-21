@@ -14,6 +14,7 @@ import MyOrders from "./pages/MyOrders";
 
 import AdminLogin from "./pages/admin/AdminLogin";
 import AdminGuard from "./pages/admin/AdminGuard";
+import AdminDashboard from "./pages/admin/AdminDashboard"; // ✅ NUEVO
 import AdminProducts from "./pages/admin/AdminProducts";
 import AdminOrders from "./pages/admin/AdminOrders";
 
@@ -39,6 +40,16 @@ export default function App() {
           {/* Admin */}
           <Route path="/admin" element={<Navigate to="/admin/login" replace />} />
           <Route path="/admin/login" element={<AdminLogin />} />
+
+          {/* ✅ NUEVO: Dashboard */}
+          <Route
+            path="/admin/dashboard"
+            element={
+              <AdminGuard>
+                <AdminDashboard />
+              </AdminGuard>
+            }
+          />
 
           <Route
             path="/admin/products"

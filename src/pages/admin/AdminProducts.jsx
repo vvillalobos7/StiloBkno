@@ -144,7 +144,8 @@ export default function AdminProducts() {
 
   const save = async () => {
     if (!form.name.trim()) return alert("Nombre requerido.");
-    if (!Number.isFinite(Number(form.price)) || Number(form.price) < 0) return alert("Precio inválido.");
+    if (!Number.isFinite(Number(form.price)) || Number(form.price) < 0)
+      return alert("Precio inválido.");
 
     setSaving(true);
     try {
@@ -180,7 +181,11 @@ export default function AdminProducts() {
   };
 
   const toggleActive = async (p) => {
-    const { error } = await supabase.from("products").update({ is_active: !p.is_active }).eq("id", p.id);
+    const { error } = await supabase
+      .from("products")
+      .update({ is_active: !p.is_active })
+      .eq("id", p.id);
+
     if (error) return alert(error.message);
     loadAll();
   };
@@ -205,6 +210,14 @@ export default function AdminProducts() {
           </div>
 
           <div className="ml-auto flex items-center gap-2">
+            {/* ✅ NUEVO: Dashboard */}
+            <a
+              href="/admin/dashboard"
+              className="rounded-2xl border border-white/10 px-4 py-2 text-sm text-zinc-200 hover:bg-white/5"
+            >
+              Dashboard
+            </a>
+
             <a
               href="/admin/orders"
               className="rounded-2xl border border-white/10 px-4 py-2 text-sm text-zinc-200 hover:bg-white/5"

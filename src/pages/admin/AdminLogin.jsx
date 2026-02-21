@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { useNavigate } from "react-router-dom";
 
@@ -8,12 +8,25 @@ export default function AdminLogin() {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
 
+  // ✅ Si ya hay sesión, mandar directo al dashboard
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.auth.getSession();
+      if (data?.session) nav("/admin/dashboard", { replace: true });
+    })();
+  }, [nav]);
+
   const login = async () => {
+    if (!email || !password) return alert("Completa email y password.");
+
     setBusy(true);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     setBusy(false);
+
     if (error) return alert(error.message);
-    nav("/admin/products");
+
+    // ✅ recomendado: entrar al dashboard
+    nav("/admin/dashboard", { replace: true });
   };
 
   const forgot = async () => {
@@ -28,10 +41,14 @@ export default function AdminLogin() {
   };
 
   return (
-    <div className="min-h-screen grid place-items-center px-4">
+    <div className="min-h-screen grid place-items-center px-4 bg-zinc-950 text-zinc-100">
       <div className="w-full max-w-md rounded-3xl border border-white/10 bg-zinc-900/30 p-6">
         <div className="text-xs text-zinc-400">Panel Admin</div>
         <h2 className="text-2xl font-extrabold tracking-tight">StiloBkno</h2>
+
+        <div className="mt-2 text-sm text-zinc-400">
+          Accede al panel para gestionar productos, pedidos y métricas.
+        </div>
 
         <div className="mt-6 grid gap-3">
           <input
@@ -39,6 +56,7 @@ export default function AdminLogin() {
             placeholder="Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            autoComplete="email"
           />
 
           <input
@@ -47,6 +65,7 @@ export default function AdminLogin() {
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            autoComplete="current-password"
           />
 
           <button
