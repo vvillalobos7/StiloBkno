@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import Navbar from "../components/navbar";
+import Navbar from "../components/Navbar";
 import Loading from "../components/Loading";
 import ProductCard from "../components/ProductCard";
 import ProductModal from "../components/ProductModal";
