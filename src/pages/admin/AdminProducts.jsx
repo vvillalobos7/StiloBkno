@@ -1,11 +1,24 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase, BUSINESS_ID, STORAGE_BUCKET } from "../../lib/supabase";
 import Loading from "../../components/Loading";
-import { moneyCLP, slug } from "../../utils/Format"; 
+import { moneyCLP, slug } from "../../utils/format"; // ✅ FIX: format (evita errores)
 
 function uid() {
   return crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
 }
+
+// ✅ helpers: formatear y parsear CLP con separador de miles
+const formatCLP = (n) => {
+  const num = Number(n ?? 0);
+  if (!Number.isFinite(num)) return "";
+  return Math.trunc(num).toLocaleString("es-CL");
+};
+
+const parseCLP = (raw) => {
+  const digits = String(raw ?? "").replace(/\D/g, "");
+  if (!digits) return 0;
+  return Number(digits);
+};
 
 export default function AdminProducts() {
   const [loading, setLoading] = useState(true);
@@ -237,25 +250,29 @@ export default function AdminProducts() {
               />
             </label>
 
-            {/* ✅ FIX: precio con label + number real */}
+            {/* ✅ Precio con separador de miles + $ */}
             <label className="grid gap-2">
               <span className="text-xs text-zinc-400">Precio (CLP)</span>
-              <input
-                type="number"
-                min="0"
-                className="rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-white/20"
-                placeholder="Ej: 49990"
-                value={form.price}
-                onChange={(e) =>
-                  setForm((s) => ({
-                    ...s,
-                    price: Number(e.target.value),
-                  }))
-                }
-              />
+
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 text-sm">$</span>
+                <input
+                  inputMode="numeric"
+                  className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 pl-9 pr-4 py-3 text-sm outline-none focus:ring-2 focus:ring-white/20"
+                  placeholder="Ej: 49.990"
+                  value={formatCLP(form.price)}
+                  onChange={(e) =>
+                    setForm((s) => ({
+                      ...s,
+                      price: parseCLP(e.target.value),
+                    }))
+                  }
+                />
+              </div>
+
               {Number(form.price) > 0 ? (
                 <div className="text-[11px] text-emerald-400">
-                  Se mostrará como: ${Number(form.price).toLocaleString("es-CL")}
+                  Guardará: ${Number(form.price).toLocaleString("es-CL")}
                 </div>
               ) : (
                 <div className="text-[11px] text-zinc-500">Ingresa el precio en pesos chilenos.</div>

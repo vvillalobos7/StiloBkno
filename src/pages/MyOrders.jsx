@@ -1,8 +1,96 @@
-import { useEffect, useState } from "react";
-import Navbar from "../components/navbar";
+import { useEffect, useMemo, useState } from "react";
+import Navbar from "../components/Navbar";
 import Loading from "../components/Loading";
 import { supabase } from "../lib/supabase";
-import { moneyCLP } from "../utils/Format";
+import { moneyCLP } from "../utils/format";
+
+const STATUS_FLOW = ["new", "confirmed", "shipped", "delivered"];
+
+const STATUS_LABEL = {
+  new: "Nuevo",
+  confirmed: "Confirmado",
+  shipped: "Enviado",
+  delivered: "Entregado",
+  cancelled: "Cancelado",
+};
+
+const badgeClass = (status) => {
+  switch (status) {
+    case "new":
+      return "bg-amber-400/20 text-amber-200 border border-amber-400/20";
+    case "confirmed":
+      return "bg-sky-400/20 text-sky-200 border border-sky-400/20";
+    case "shipped":
+      return "bg-violet-400/20 text-violet-200 border border-violet-400/20";
+    case "delivered":
+      return "bg-emerald-400/20 text-emerald-200 border border-emerald-400/20";
+    case "cancelled":
+      return "bg-rose-400/20 text-rose-200 border border-rose-400/20";
+    default:
+      return "bg-white/10 text-zinc-200 border border-white/10";
+  }
+};
+
+function stepIndex(status) {
+  const idx = STATUS_FLOW.indexOf(status);
+  return idx === -1 ? 0 : idx;
+}
+
+function prettyDate(iso) {
+  try {
+    return new Date(iso).toLocaleString("es-CL");
+  } catch {
+    return iso;
+  }
+}
+
+function Timeline({ status }) {
+  const cancelled = status === "cancelled";
+  const idx = stepIndex(status);
+
+  return (
+    <div className="mt-4">
+      <div className="text-xs text-zinc-500 mb-2">Progreso</div>
+
+      <div className="grid grid-cols-4 gap-2">
+        {STATUS_FLOW.map((s, i) => {
+          const done = !cancelled && i <= idx;
+          return (
+            <div key={s} className="flex flex-col gap-2">
+              <div className="flex items-center gap-2">
+                <div
+                  className={`h-3 w-3 rounded-full ${
+                    cancelled ? "bg-rose-400/50" : done ? "bg-white" : "bg-white/20"
+                  }`}
+                />
+                <div
+                  className={`h-[2px] flex-1 ${
+                    i === STATUS_FLOW.length - 1
+                      ? "bg-transparent"
+                      : cancelled
+                      ? "bg-rose-400/20"
+                      : done
+                      ? "bg-white/50"
+                      : "bg-white/10"
+                  }`}
+                />
+              </div>
+              <div className={`text-[11px] ${done ? "text-zinc-200" : "text-zinc-500"}`}>
+                {STATUS_LABEL[s]}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {cancelled ? (
+        <div className="mt-3 text-xs text-rose-200 border border-rose-400/20 bg-rose-400/10 rounded-2xl px-3 py-2">
+          Este pedido fue cancelado.
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 export default function MyOrders() {
   const [loading, setLoading] = useState(true);
@@ -40,13 +128,11 @@ export default function MyOrders() {
     })();
   }, []);
 
-  const prettyDate = (iso) => {
-    try {
-      return new Date(iso).toLocaleString("es-CL");
-    } catch {
-      return iso;
-    }
-  };
+  const countByStatus = useMemo(() => {
+    const map = {};
+    for (const o of orders) map[o.status] = (map[o.status] ?? 0) + 1;
+    return map;
+  }, [orders]);
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
@@ -54,8 +140,22 @@ export default function MyOrders() {
 
       <main className="mx-auto max-w-5xl px-4 py-8">
         <div className="rounded-3xl border border-white/10 bg-zinc-900/30 p-6">
-          <h1 className="text-2xl font-extrabold tracking-tight">Mis pedidos</h1>
-          <p className="text-sm text-zinc-400 mt-1">Aquí verás el estado de tus compras.</p>
+          <div className="flex flex-col md:flex-row md:items-end gap-3">
+            <div>
+              <h1 className="text-2xl font-extrabold tracking-tight">Mis pedidos</h1>
+              <p className="text-sm text-zinc-400 mt-1">Revisa el estado y el detalle de tus compras.</p>
+            </div>
+
+            {orders.length > 0 ? (
+              <div className="md:ml-auto flex flex-wrap gap-2">
+                {Object.entries(countByStatus).map(([s, n]) => (
+                  <span key={s} className={`text-xs px-3 py-1 rounded-full ${badgeClass(s)}`}>
+                    {STATUS_LABEL[s] ?? s}: {n}
+                  </span>
+                ))}
+              </div>
+            ) : null}
+          </div>
 
           {loading ? (
             <Loading label="Cargando pedidos..." />
@@ -77,18 +177,28 @@ export default function MyOrders() {
             <div className="mt-6 space-y-3">
               {orders.map((o) => (
                 <div key={o.id} className="rounded-3xl border border-white/10 bg-zinc-950/30 p-4">
-                  <div className="flex flex-col md:flex-row md:items-center gap-3">
+                  <div className="flex flex-col md:flex-row md:items-start gap-3">
                     <div className="min-w-0 flex-1">
                       <div className="text-xs text-zinc-500">ID: {o.id}</div>
                       <div className="text-xs text-zinc-400 mt-1">{prettyDate(o.created_at)}</div>
-                      {o.notes ? <div className="text-xs text-zinc-300 mt-2">📝 {o.notes}</div> : null}
-                    </div>
 
-                    <div className="text-right">
-                      <div className="text-xs text-zinc-400">Estado</div>
-                      <div className="text-sm font-semibold">{o.status}</div>
-                      <div className="text-xs text-zinc-400 mt-2">Total</div>
-                      <div className="text-lg font-extrabold">${moneyCLP(o.total)}</div>
+                      <div className="mt-3 flex items-center gap-2">
+                        <span className={`text-xs px-3 py-1 rounded-full ${badgeClass(o.status)}`}>
+                          {STATUS_LABEL[o.status] ?? o.status}
+                        </span>
+                        <span className="text-xs text-zinc-500">•</span>
+                        <span className="text-xs text-zinc-400">
+                          Total: <span className="text-zinc-200 font-semibold">${moneyCLP(o.total)}</span>
+                        </span>
+                      </div>
+
+                      {o.notes ? (
+                        <div className="text-xs text-zinc-300 mt-3 border border-white/10 bg-white/5 rounded-2xl px-3 py-2">
+                          📝 {o.notes}
+                        </div>
+                      ) : null}
+
+                      <Timeline status={o.status} />
                     </div>
                   </div>
 
