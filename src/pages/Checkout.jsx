@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import Navbar from "../components/navbar";
+import Navbar from "../components/Navbar";
 import Loading from "../components/Loading";
 import { useCart } from "../store/cart";
 import { supabase, BUSINESS_ID } from "../lib/supabase";
-import { moneyCLP } from "../utils/Format";
+import { moneyCLP } from "../utils/format";
 
 function normalizePhoneToWa(phone) {
   if (!phone) return null;

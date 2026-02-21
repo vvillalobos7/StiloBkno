@@ -1,4 +1,4 @@
-import { moneyCLP } from "../utils/Format";
+import { moneyCLP } from "../utils/format";
 
 export default function ProductModal({ open, onClose, product, imageUrl, onAdd }) {
   if (!open || !product) return null;

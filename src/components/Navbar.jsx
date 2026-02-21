@@ -1,7 +1,7 @@
 import { Link, NavLink } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useCart } from "../store/cart";
-import { moneyCLP } from "../utils/Format";
+import { moneyCLP } from "../utils/format";
 import { supabase } from "../lib/supabase";
 
 export default function Navbar({ subtitle = "Drop premium | Streetwear | Tendencia" }) {

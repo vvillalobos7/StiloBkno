@@ -1,4 +1,4 @@
-import { moneyCLP } from "../utils/Format";
+import { moneyCLP } from "../utils/format";
 
 export default function ProductCard({ product, imageUrl, onAdd, onQuickView }) {
   return (

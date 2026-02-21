@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import Navbar from "../components/navbar";
+import Navbar from "../components/Navbar";
 import Loading from "../components/Loading";
 import { supabase } from "../lib/supabase";
 
