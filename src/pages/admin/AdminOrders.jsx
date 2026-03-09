@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase, BUSINESS_ID } from "../../lib/supabase";
 import Loading from "../../components/Loading";
 import { moneyCLP } from "../../utils/format";
@@ -125,13 +125,20 @@ function Timeline({ status }) {
 export default function AdminOrders() {
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState(null);
-
   const [orders, setOrders] = useState([]);
-
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
+  const [toast, setToast] = useState(null);
+  const [livePulse, setLivePulse] = useState(false);
 
-  const [toast, setToast] = useState(null); // { type: "ok"|"err", msg: string }
+  const reloadTimeoutRef = useRef(null);
+  const pulseTimeoutRef = useRef(null);
+
+  const pulseLive = () => {
+    setLivePulse(true);
+    window.clearTimeout(pulseTimeoutRef.current);
+    pulseTimeoutRef.current = window.setTimeout(() => setLivePulse(false), 1400);
+  };
 
   const showToast = (type, msg) => {
     setToast({ type, msg });
@@ -139,8 +146,8 @@ export default function AdminOrders() {
     showToast._t = window.setTimeout(() => setToast(null), 2400);
   };
 
-  const load = async () => {
-    setLoading(true);
+  const load = async (silent = false) => {
+    if (!silent) setLoading(true);
 
     const { data, error } = await supabase
       .from("orders")
@@ -155,11 +162,47 @@ export default function AdminOrders() {
 
     if (error) console.error(error);
     setOrders(data ?? []);
-    setLoading(false);
+    if (!silent) setLoading(false);
   };
 
   useEffect(() => {
     load();
+  }, []);
+
+  useEffect(() => {
+    const debouncedReload = () => {
+      pulseLive();
+      window.clearTimeout(reloadTimeoutRef.current);
+      reloadTimeoutRef.current = window.setTimeout(() => load(true), 400);
+    };
+
+    const channel = supabase
+      .channel(`admin-orders-realtime-${BUSINESS_ID}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "orders" },
+        (payload) => {
+          console.log("Realtime orders:", payload);
+          debouncedReload();
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "order_items" },
+        (payload) => {
+          console.log("Realtime order_items:", payload);
+          debouncedReload();
+        }
+      )
+      .subscribe((status) => {
+        console.log("AdminOrders realtime status:", status);
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+      window.clearTimeout(reloadTimeoutRef.current);
+      window.clearTimeout(pulseTimeoutRef.current);
+    };
   }, []);
 
   const filtered = useMemo(() => {
@@ -176,7 +219,6 @@ export default function AdminOrders() {
   }, [orders, q, statusFilter]);
 
   const updateStatus = async (orderId, nextStatus) => {
-    // Evita update innecesario si es el mismo valor
     const current = orders.find((x) => x.id === orderId)?.status;
     if (current === nextStatus) return;
 
@@ -185,13 +227,11 @@ export default function AdminOrders() {
       const { error } = await supabase.from("orders").update({ status: nextStatus }).eq("id", orderId);
       if (error) throw error;
 
-      // actualización local rápida
       setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, status: nextStatus } : o)));
 
+      pulseLive();
       showToast("ok", `Estado actualizado a: ${STATUS_LABEL[nextStatus] ?? nextStatus}`);
-
-      // refresco suave (por si cambió algo más en DB)
-      setTimeout(() => load(), 450);
+      setTimeout(() => load(true), 300);
     } catch (e) {
       console.error(e);
       showToast("err", e.message ?? String(e));
@@ -203,7 +243,6 @@ export default function AdminOrders() {
 
   return (
     <div className="min-h-screen bg-zinc-950 text-zinc-100">
-      {/* Toast */}
       {toast ? (
         <div className="fixed top-4 right-4 z-[100]">
           <div
@@ -230,14 +269,23 @@ export default function AdminOrders() {
           </div>
 
           <div className="ml-auto flex items-center gap-2">
+            <div
+              className={`text-xs px-3 py-1.5 rounded-full border transition ${
+                livePulse
+                  ? "border-emerald-400/30 bg-emerald-400/15 text-emerald-200"
+                  : "border-white/10 bg-white/5 text-zinc-400"
+              }`}
+            >
+              {livePulse ? "Actualizado en vivo" : "Realtime activo"}
+            </div>
+
             <button
-              onClick={load}
+              onClick={() => load()}
               className="rounded-2xl border border-white/10 px-4 py-2 text-sm text-zinc-200 hover:bg-white/5"
             >
               Actualizar
             </button>
 
-            {/* ✅ NUEVO: Dashboard */}
             <a
               href="/admin/dashboard"
               className="rounded-2xl border border-white/10 px-4 py-2 text-sm text-zinc-200 hover:bg-white/5"
