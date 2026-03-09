@@ -1,13 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase, BUSINESS_ID, STORAGE_BUCKET } from "../../lib/supabase";
 import Loading from "../../components/Loading";
-import { moneyCLP, slug } from "../../utils/format"; // ✅ FIX: format (evita errores)
+import { moneyCLP, slug } from "../../utils/format";
 
 function uid() {
   return crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
 }
 
-// ✅ helpers: formatear y parsear CLP con separador de miles
 const formatCLP = (n) => {
   const num = Number(n ?? 0);
   if (!Number.isFinite(num)) return "";
@@ -20,15 +19,28 @@ const parseCLP = (raw) => {
   return Number(digits);
 };
 
+const emptyVariant = {
+  size: "",
+  color: "",
+  stock: 0,
+  price_override: 0,
+  is_active: true,
+};
+
 export default function AdminProducts() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [savingCategory, setSavingCategory] = useState(false);
+  const [savingVariantFor, setSavingVariantFor] = useState(null);
 
   const [categories, setCategories] = useState([]);
   const [products, setProducts] = useState([]);
+  const [variantsByProduct, setVariantsByProduct] = useState({});
 
   const [q, setQ] = useState("");
   const [onlyActive, setOnlyActive] = useState(false);
+
+  const [newCategory, setNewCategory] = useState("");
 
   const [form, setForm] = useState({
     id: null,
@@ -40,11 +52,8 @@ export default function AdminProducts() {
     image_path: null,
   });
 
+  const [variantForms, setVariantForms] = useState({});
   const [file, setFile] = useState(null);
-
-  useEffect(() => {
-    console.log("ADMIN PRODUCTS LOADED ✅");
-  }, []);
 
   const imageUrl = (path) => {
     if (!path) return null;
@@ -71,9 +80,28 @@ export default function AdminProducts() {
       .order("created_at", { ascending: false });
 
     if (prodsErr) console.error(prodsErr);
-    setProducts(prods ?? []);
+    const productList = prods ?? [];
+    setProducts(productList);
 
-    // si no hay category_id en el form, y existen categorías, setear la primera
+    const { data: vars, error: varsErr } = await supabase
+      .from("product_variants")
+      .select("id,product_id,size,color,stock,price_override,is_active,created_at")
+      .eq("business_id", BUSINESS_ID)
+      .order("created_at", { ascending: false });
+
+    if (varsErr) console.error(varsErr);
+
+    const grouped = {};
+    for (const v of vars ?? []) {
+      if (!grouped[v.product_id]) grouped[v.product_id] = [];
+      grouped[v.product_id].push(v);
+    }
+    setVariantsByProduct(grouped);
+
+    const variantSeed = {};
+    for (const p of productList) variantSeed[p.id] = { ...emptyVariant };
+    setVariantForms((prev) => ({ ...variantSeed, ...prev }));
+
     setForm((s) => ({
       ...s,
       category_id: s.category_id || (cats?.[0]?.id ?? ""),
@@ -84,7 +112,6 @@ export default function AdminProducts() {
 
   useEffect(() => {
     loadAll();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const filtered = useMemo(() => {
@@ -94,6 +121,7 @@ export default function AdminProducts() {
         !term ||
         p.name?.toLowerCase().includes(term) ||
         p.description?.toLowerCase().includes(term);
+
       const okActive = !onlyActive || p.is_active === true;
       return okTerm && okActive;
     });
@@ -144,8 +172,9 @@ export default function AdminProducts() {
 
   const save = async () => {
     if (!form.name.trim()) return alert("Nombre requerido.");
-    if (!Number.isFinite(Number(form.price)) || Number(form.price) < 0)
+    if (!Number.isFinite(Number(form.price)) || Number(form.price) < 0) {
       return alert("Precio inválido.");
+    }
 
     setSaving(true);
     try {
@@ -180,6 +209,40 @@ export default function AdminProducts() {
     }
   };
 
+  const createCategory = async () => {
+    const name = newCategory.trim();
+    if (!name) return alert("Escribe el nombre de la categoría.");
+
+    const exists = categories.some((c) => c.name?.toLowerCase() === name.toLowerCase());
+    if (exists) return alert("Esa categoría ya existe.");
+
+    setSavingCategory(true);
+    try {
+      const { data, error } = await supabase
+        .from("categories")
+        .insert({
+          business_id: BUSINESS_ID,
+          name,
+        })
+        .select("id,name")
+        .single();
+
+      if (error) throw error;
+
+      await loadAll();
+      setNewCategory("");
+      if (data?.id) {
+        setForm((s) => ({ ...s, category_id: data.id }));
+      }
+      alert("Categoría creada ✅");
+    } catch (e) {
+      console.error(e);
+      alert(`Error creando categoría: ${e.message ?? e}`);
+    } finally {
+      setSavingCategory(false);
+    }
+  };
+
   const toggleActive = async (p) => {
     const { error } = await supabase
       .from("products")
@@ -197,6 +260,81 @@ export default function AdminProducts() {
     loadAll();
   };
 
+  const setVariantField = (productId, key, value) => {
+    setVariantForms((prev) => ({
+      ...prev,
+      [productId]: {
+        ...(prev[productId] ?? { ...emptyVariant }),
+        [key]: value,
+      },
+    }));
+  };
+
+  const saveVariant = async (product) => {
+    const vf = variantForms[product.id] ?? { ...emptyVariant };
+
+    if (!vf.size.trim() && !vf.color.trim()) {
+      return alert("Debes ingresar al menos talla o color.");
+    }
+
+    if (!Number.isFinite(Number(vf.stock)) || Number(vf.stock) < 0) {
+      return alert("Stock inválido.");
+    }
+
+    if (!Number.isFinite(Number(vf.price_override)) || Number(vf.price_override) < 0) {
+      return alert("Precio variante inválido.");
+    }
+
+    setSavingVariantFor(product.id);
+    try {
+      const payload = {
+        business_id: BUSINESS_ID,
+        product_id: product.id,
+        size: vf.size.trim() || null,
+        color: vf.color.trim() || null,
+        stock: Number(vf.stock),
+        price_override: Number(vf.price_override) > 0 ? Number(vf.price_override) : null,
+        is_active: !!vf.is_active,
+      };
+
+      const { error } = await supabase.from("product_variants").insert(payload);
+      if (error) throw error;
+
+      setVariantForms((prev) => ({
+        ...prev,
+        [product.id]: { ...emptyVariant },
+      }));
+
+      await loadAll();
+      alert("Variante creada ✅");
+    } catch (e) {
+      console.error(e);
+      alert(`Error creando variante: ${e.message ?? e}`);
+    } finally {
+      setSavingVariantFor(null);
+    }
+  };
+
+  const toggleVariantActive = async (variant) => {
+    const { error } = await supabase
+      .from("product_variants")
+      .update({ is_active: !variant.is_active })
+      .eq("id", variant.id);
+
+    if (error) return alert(error.message);
+    loadAll();
+  };
+
+  const removeVariant = async (variant) => {
+    if (!confirm("¿Eliminar esta variante?")) return;
+    const { error } = await supabase.from("product_variants").delete().eq("id", variant.id);
+    if (error) return alert(error.message);
+    loadAll();
+  };
+
+  const totalStock = (productId) =>
+    (variantsByProduct[productId] ?? []).reduce((acc, v) => acc + Number(v.stock ?? 0), 0);
+
   return (
     <div className="min-h-screen bg-zinc-950">
       <header className="border-b border-white/10 bg-zinc-950/75 backdrop-blur sticky top-0 z-40">
@@ -210,7 +348,6 @@ export default function AdminProducts() {
           </div>
 
           <div className="ml-auto flex items-center gap-2">
-            {/* ✅ NUEVO: Dashboard */}
             <a
               href="/admin/dashboard"
               className="rounded-2xl border border-white/10 px-4 py-2 text-sm text-zinc-200 hover:bg-white/5"
@@ -263,9 +400,8 @@ export default function AdminProducts() {
               />
             </label>
 
-            {/* ✅ Precio con separador de miles + $ */}
             <label className="grid gap-2">
-              <span className="text-xs text-zinc-400">Precio (CLP)</span>
+              <span className="text-xs text-zinc-400">Precio base (CLP)</span>
 
               <div className="relative">
                 <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 text-sm">$</span>
@@ -316,6 +452,25 @@ export default function AdminProducts() {
                 onChange={(e) => setForm((s) => ({ ...s, is_active: e.target.checked }))}
               />
             </label>
+
+            <div className="md:col-span-2 rounded-3xl border border-white/10 bg-zinc-950/20 p-4">
+              <div className="text-sm font-bold">Crear nueva categoría</div>
+              <div className="mt-3 flex flex-col md:flex-row gap-3">
+                <input
+                  className="flex-1 rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-white/20"
+                  placeholder="Ej: Zapatillas"
+                  value={newCategory}
+                  onChange={(e) => setNewCategory(e.target.value)}
+                />
+                <button
+                  disabled={savingCategory}
+                  onClick={createCategory}
+                  className="rounded-2xl bg-white text-zinc-950 font-extrabold px-5 py-3 hover:opacity-90 disabled:opacity-60"
+                >
+                  {savingCategory ? "Creando..." : "Crear categoría"}
+                </button>
+              </div>
+            </div>
 
             <textarea
               className="md:col-span-2 rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-white/20"
@@ -383,54 +538,178 @@ export default function AdminProducts() {
           {loading ? (
             <Loading label="Cargando productos..." />
           ) : (
-            <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-3">
-              {filtered.map((p) => (
-                <div key={p.id} className="rounded-3xl border border-white/10 bg-zinc-950/30 p-4 flex gap-4">
-                  <div className="h-20 w-20 rounded-2xl overflow-hidden bg-white/5 shrink-0">
-                    {p.image_path ? (
-                      <img className="h-full w-full object-cover" src={imageUrl(p.image_path)} alt={p.name} />
-                    ) : null}
+            <div className="mt-5 grid grid-cols-1 gap-3">
+              {filtered.map((p) => {
+                const variants = variantsByProduct[p.id] ?? [];
+                const vf = variantForms[p.id] ?? { ...emptyVariant };
+
+                return (
+                  <div key={p.id} className="rounded-3xl border border-white/10 bg-zinc-950/30 p-4">
+                    <div className="flex flex-col lg:flex-row gap-4">
+                      <div className="h-24 w-24 rounded-2xl overflow-hidden bg-white/5 shrink-0">
+                        {p.image_path ? (
+                          <img className="h-full w-full object-cover" src={imageUrl(p.image_path)} alt={p.name} />
+                        ) : null}
+                      </div>
+
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
+                          <div>
+                            <div className="font-semibold text-lg truncate">{p.name}</div>
+                            <div className="text-xs text-zinc-400 mt-1">
+                              {p.description || "Sin descripción"}
+                            </div>
+                            <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                              <span className="rounded-full border border-white/10 px-3 py-1 text-zinc-300">
+                                Precio base: ${moneyCLP(p.price)}
+                              </span>
+                              <span className="rounded-full border border-white/10 px-3 py-1 text-zinc-300">
+                                Stock total variantes: {totalStock(p.id)}
+                              </span>
+                              <span
+                                className={`rounded-full px-3 py-1 ${
+                                  p.is_active
+                                    ? "bg-emerald-500 text-zinc-950"
+                                    : "border border-white/10 text-zinc-300"
+                                }`}
+                              >
+                                {p.is_active ? "Activo" : "Inactivo"}
+                              </span>
+                            </div>
+                          </div>
+
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              onClick={() => edit(p)}
+                              className="rounded-2xl border border-white/10 px-3 py-2 text-sm text-zinc-200 hover:bg-white/5"
+                            >
+                              Editar
+                            </button>
+
+                            <button
+                              onClick={() => toggleActive(p)}
+                              className={`rounded-2xl px-3 py-2 text-sm font-semibold ${
+                                p.is_active
+                                  ? "bg-emerald-500 text-zinc-950"
+                                  : "bg-white/10 text-zinc-200 border border-white/10"
+                              }`}
+                            >
+                              {p.is_active ? "Activo" : "Inactivo"}
+                            </button>
+
+                            <button
+                              onClick={() => remove(p)}
+                              className="rounded-2xl border border-white/10 px-3 py-2 text-sm text-zinc-200 hover:bg-white/5"
+                            >
+                              Eliminar
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="mt-4 rounded-3xl border border-white/10 bg-zinc-900/30 p-4">
+                          <div className="text-sm font-bold">Variantes</div>
+
+                          {variants.length === 0 ? (
+                            <div className="mt-3 text-sm text-zinc-400">Aún no hay variantes para este producto.</div>
+                          ) : (
+                            <div className="mt-3 space-y-2">
+                              {variants.map((v) => (
+                                <div
+                                  key={v.id}
+                                  className="rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 flex flex-col md:flex-row md:items-center gap-3"
+                                >
+                                  <div className="min-w-0 flex-1">
+                                    <div className="text-sm font-semibold text-zinc-200">
+                                      {v.size ? `Talla: ${v.size}` : "Sin talla"}
+                                      {" • "}
+                                      {v.color ? `Color: ${v.color}` : "Sin color"}
+                                    </div>
+                                    <div className="text-xs text-zinc-400 mt-1">
+                                      Stock: {v.stock}
+                                      {" • "}
+                                      Precio variante:{" "}
+                                      {v.price_override ? `$${moneyCLP(v.price_override)}` : "usa precio base"}
+                                    </div>
+                                  </div>
+
+                                  <div className="flex flex-wrap gap-2">
+                                    <button
+                                      onClick={() => toggleVariantActive(v)}
+                                      className={`rounded-2xl px-3 py-2 text-sm font-semibold ${
+                                        v.is_active
+                                          ? "bg-emerald-500 text-zinc-950"
+                                          : "bg-white/10 text-zinc-200 border border-white/10"
+                                      }`}
+                                    >
+                                      {v.is_active ? "Activa" : "Inactiva"}
+                                    </button>
+
+                                    <button
+                                      onClick={() => removeVariant(v)}
+                                      className="rounded-2xl border border-white/10 px-3 py-2 text-sm text-zinc-200 hover:bg-white/5"
+                                    >
+                                      Eliminar
+                                    </button>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          <div className="mt-4 grid md:grid-cols-5 gap-3">
+                            <input
+                              className="rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-white/20"
+                              placeholder="Talla (S, M, L, 42...)"
+                              value={vf.size}
+                              onChange={(e) => setVariantField(p.id, "size", e.target.value)}
+                            />
+
+                            <input
+                              className="rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-white/20"
+                              placeholder="Color"
+                              value={vf.color}
+                              onChange={(e) => setVariantField(p.id, "color", e.target.value)}
+                            />
+
+                            <input
+                              inputMode="numeric"
+                              className="rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-white/20"
+                              placeholder="Stock"
+                              value={vf.stock}
+                              onChange={(e) => setVariantField(p.id, "stock", parseCLP(e.target.value))}
+                            />
+
+                            <input
+                              inputMode="numeric"
+                              className="rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-white/20"
+                              placeholder="Precio variante (opcional)"
+                              value={vf.price_override ? formatCLP(vf.price_override) : ""}
+                              onChange={(e) => setVariantField(p.id, "price_override", parseCLP(e.target.value))}
+                            />
+
+                            <button
+                              disabled={savingVariantFor === p.id}
+                              onClick={() => saveVariant(p)}
+                              className="rounded-2xl bg-white text-zinc-950 font-extrabold px-5 py-3 hover:opacity-90 disabled:opacity-60"
+                            >
+                              {savingVariantFor === p.id ? "Guardando..." : "Agregar variante"}
+                            </button>
+                          </div>
+
+                          <label className="mt-3 inline-flex items-center gap-2 text-sm text-zinc-300">
+                            <input
+                              type="checkbox"
+                              checked={!!vf.is_active}
+                              onChange={(e) => setVariantField(p.id, "is_active", e.target.checked)}
+                            />
+                            Variante activa
+                          </label>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="font-semibold truncate">{p.name}</div>
-                      <div className="font-extrabold whitespace-nowrap">${moneyCLP(p.price)}</div>
-                    </div>
-
-                    <div className="text-xs text-zinc-400 line-clamp-2 mt-1">
-                      {p.description || "Sin descripción"}
-                    </div>
-
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      <button
-                        onClick={() => edit(p)}
-                        className="rounded-2xl border border-white/10 px-3 py-2 text-sm text-zinc-200 hover:bg-white/5"
-                      >
-                        Editar
-                      </button>
-
-                      <button
-                        onClick={() => toggleActive(p)}
-                        className={`rounded-2xl px-3 py-2 text-sm font-semibold ${
-                          p.is_active
-                            ? "bg-emerald-500 text-zinc-950"
-                            : "bg-white/10 text-zinc-200 border border-white/10"
-                        }`}
-                      >
-                        {p.is_active ? "Activo" : "Inactivo"}
-                      </button>
-
-                      <button
-                        onClick={() => remove(p)}
-                        className="rounded-2xl border border-white/10 px-3 py-2 text-sm text-zinc-200 hover:bg-white/5"
-                      >
-                        Eliminar
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
 
               {filtered.length === 0 ? (
                 <div className="text-sm text-zinc-400">No hay productos con ese filtro.</div>

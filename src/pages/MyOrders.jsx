@@ -60,6 +60,7 @@ function prettyDate(iso) {
 
 function StatusBadge({ status }) {
   const meta = STATUS_META[status] ?? { icon: "ℹ️", tone: "zinc" };
+
   return (
     <span
       className={[
@@ -78,7 +79,6 @@ function StatusBadge({ status }) {
 function Timeline({ status }) {
   const cancelled = status === "cancelled";
   const idx = stepIndex(status);
-
   const currentLabel = STATUS_LABEL[status] ?? status;
 
   return (
@@ -182,7 +182,7 @@ export default function MyOrders() {
         .select(
           `
           id, total, status, created_at, notes,
-          order_items ( id, product_name_snapshot, qty, unit_price_snapshot, line_total )
+          order_items ( id, product_name_snapshot, variant_snapshot, qty, unit_price_snapshot, line_total )
         `
         )
         .eq("user_id", u.id)
@@ -243,7 +243,6 @@ export default function MyOrders() {
             <div className="mt-6 space-y-3">
               {orders.map((o) => (
                 <div key={o.id} className="rounded-3xl border border-white/10 bg-zinc-950/30 p-5">
-                  {/* Header */}
                   <div className="flex flex-col md:flex-row md:items-start gap-4">
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
@@ -276,7 +275,6 @@ export default function MyOrders() {
                     </div>
                   </div>
 
-                  {/* Items */}
                   <div className="mt-5 border-t border-white/10 pt-4">
                     <div className="text-xs text-zinc-500 mb-3">Detalle</div>
 
@@ -290,8 +288,15 @@ export default function MyOrders() {
                             <div className="text-sm text-zinc-200 truncate">
                               {it.product_name_snapshot}
                             </div>
+
+                            {it.variant_snapshot ? (
+                              <div className="text-xs text-zinc-400 mt-1">
+                                {it.variant_snapshot}
+                              </div>
+                            ) : null}
+
                             <div className="text-xs text-zinc-500 mt-0.5">
-                              {moneyCLP(it.unit_price_snapshot)} c/u • x{it.qty}
+                              ${moneyCLP(it.unit_price_snapshot)} c/u • x{it.qty}
                             </div>
                           </div>
 

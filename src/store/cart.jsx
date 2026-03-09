@@ -2,7 +2,11 @@ import React, { createContext, useContext, useEffect, useMemo, useState } from "
 
 const CartCtx = createContext(null);
 
-const LS_KEY = "stilobkno_cart_v1";
+const LS_KEY = "stilobkno_cart_v2";
+
+function makeKey(item) {
+  return item.variant_id ? `${item.id}::${item.variant_id}` : `${item.id}`;
+}
 
 export function CartProvider({ children }) {
   const [items, setItems] = useState(() => {
@@ -19,32 +23,70 @@ export function CartProvider({ children }) {
   }, [items]);
 
   const add = (p) => {
+    const key = makeKey(p);
+
     setItems((prev) => {
-      const found = prev.find((x) => x.id === p.id);
-      if (found) return prev.map((x) => (x.id === p.id ? { ...x, qty: x.qty + 1 } : x));
+      const found = prev.find((x) => x.key === key);
+
+      if (found) {
+        const nextQty = found.qty + 1;
+        if (p.stock && nextQty > p.stock) {
+          alert("No hay más stock disponible para esa variante.");
+          return prev;
+        }
+
+        return prev.map((x) =>
+          x.key === key
+            ? {
+                ...x,
+                qty: nextQty,
+              }
+            : x
+        );
+      }
+
       return [
         ...prev,
         {
+          key,
           id: p.id,
+          variant_id: p.variant_id ?? null,
+          variant_label: p.variant_label ?? null,
+          size: p.size ?? null,
+          color: p.color ?? null,
           name: p.name,
-          price: p.price,
+          price: Number(p.price ?? 0),
           qty: 1,
+          stock: Number(p.stock ?? 0),
           image_path: p.image_path ?? null,
         },
       ];
     });
   };
 
-  const inc = (id) => setItems((prev) => prev.map((x) => (x.id === id ? { ...x, qty: x.qty + 1 } : x)));
+  const inc = (key) =>
+    setItems((prev) =>
+      prev.map((x) => {
+        if (x.key !== key) return x;
 
-  const dec = (id) =>
+        const nextQty = x.qty + 1;
+        if (x.stock && nextQty > x.stock) {
+          alert("No hay más stock disponible para esa variante.");
+          return x;
+        }
+
+        return { ...x, qty: nextQty };
+      })
+    );
+
+  const dec = (key) =>
     setItems((prev) =>
       prev
-        .map((x) => (x.id === id ? { ...x, qty: x.qty - 1 } : x))
+        .map((x) => (x.key === key ? { ...x, qty: x.qty - 1 } : x))
         .filter((x) => x.qty > 0)
     );
 
-  const remove = (id) => setItems((prev) => prev.filter((x) => x.id !== id));
+  const remove = (key) => setItems((prev) => prev.filter((x) => x.key !== key));
 
   const clear = () => setItems([]);
 
