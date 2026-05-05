@@ -1,9 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import Navbar from "../components/Navbar";
+import Footer from "../components/Footer";
 import Loading from "../components/Loading";
 import ProductCard from "../components/ProductCard";
 import ProductModal from "../components/ProductModal";
+import HeroBanner from "../components/HeroBanner";
+import SR from "../components/ScrollReveal";
 import { supabase, BUSINESS_ID, STORAGE_BUCKET } from "../lib/supabase";
 import { useCart } from "../store/cart";
 
@@ -15,7 +18,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [categories, setCategories] = useState([]);
   const [featured, setFeatured] = useState([]);
-
+  const [banners, setBanners] = useState([]);
   const [quick, setQuick] = useState(null);
 
   const imageUrl = (path) => {
@@ -24,20 +27,39 @@ export default function Home() {
     return data.publicUrl;
   };
 
+  const bannerImageUrl = (path) => {
+    if (!path) return null;
+    const { data } = supabase.storage.from("banners").getPublicUrl(path);
+    return data.publicUrl;
+  };
+
   useEffect(() => {
     (async () => {
       setLoading(true);
+
+      const { data: bData } = await supabase
+        .from("banners")
+        .select("*")
+        .eq("business_id", BUSINESS_ID)
+        .eq("is_active", true)
+        .order("sort_order")
+        .order("created_at", { ascending: false });
+
+      setBanners(
+        (bData ?? []).map((b) => ({
+          ...b,
+          imageUrl: bannerImageUrl(b.image_path),
+        }))
+      );
 
       const { data: cats, error: catsErr } = await supabase
         .from("categories")
         .select("id,name")
         .eq("business_id", BUSINESS_ID)
         .order("name");
-
       if (catsErr) console.error(catsErr);
       setCategories(cats ?? []);
 
-      // destacados: últimos productos activos
       const { data: prods, error: prodsErr } = await supabase
         .from("products")
         .select("id,name,description,price,category_id,image_path,created_at")
@@ -45,7 +67,6 @@ export default function Home() {
         .eq("is_active", true)
         .order("created_at", { ascending: false })
         .limit(6);
-
       if (prodsErr) console.error(prodsErr);
       setFeatured(prods ?? []);
 
@@ -56,243 +77,233 @@ export default function Home() {
   const catGrid = useMemo(() => categories.slice(0, 6), [categories]);
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen flex flex-col">
       <Navbar subtitle="Streetwear premium • Drops tendencia" />
 
       {/* HERO */}
-      <section className="mx-auto max-w-6xl px-4 pt-10">
-        <div className="relative overflow-hidden rounded-[2.25rem] border border-white/10 bg-gradient-to-br from-white/10 via-white/5 to-transparent">
-          <div className="absolute -top-24 -right-24 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
-          <div className="absolute -bottom-28 -left-28 h-72 w-72 rounded-full bg-white/10 blur-3xl" />
+      {banners.length > 0 ? (
+        <HeroBanner banners={banners} />
+      ) : (
+        <section className="mx-auto max-w-6xl px-4 pt-8">
+          <div className="relative overflow-hidden rounded-[2.25rem] border border-violet-500/15 bg-mesh">
+            {/* Decorative orbs */}
+            <div className="absolute -top-24 -right-24 h-72 w-72 rounded-full bg-violet-500/15 blur-[80px] animate-float" />
+            <div className="absolute -bottom-28 -left-28 h-80 w-80 rounded-full bg-fuchsia-500/10 blur-[80px]" />
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-40 w-40 rounded-full bg-violet-400/8 blur-[60px]" />
 
-          <div className="relative p-7 md:p-10">
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-zinc-950/50 px-3 py-1 text-xs text-zinc-200">
-              <span className="h-2 w-2 rounded-full bg-emerald-400" />
-              Drop activo • StiloBkno Curated
-            </div>
+            <div className="relative p-6 sm:p-7 md:p-10">
+              <div className="inline-flex items-center gap-2 rounded-full border border-violet-500/20 bg-zinc-950/50 px-3 py-1.5 text-xs text-violet-200 backdrop-blur-sm">
+                <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                Drop activo • StiloBkno Curated
+              </div>
 
-            <h1 className="mt-4 text-4xl md:text-6xl font-extrabold tracking-tight leading-[1.05]">
-              Tu estilo, <span className="text-zinc-300">tu drop.</span>
-            </h1>
+              <h1 className="mt-5 text-3xl sm:text-4xl md:text-6xl font-extrabold tracking-tight leading-[1.05]">
+                Tu estilo,{" "}
+                <span className="text-gradient">tu drop.</span>
+              </h1>
 
-            <p className="mt-4 max-w-2xl text-sm md:text-base text-zinc-300 leading-relaxed">
-              Streetwear + luxe con vibra premium. Agrega al carrito y coordina por WhatsApp.
-              Drops seleccionados con estilo de marca.
-            </p>
+              <p className="mt-4 max-w-2xl text-sm md:text-base text-zinc-400 leading-relaxed">
+                Streetwear + luxe con vibra premium. Agrega al carrito y coordina por WhatsApp.
+                Drops seleccionados con estilo de marca.
+              </p>
 
-            <div className="mt-5 flex flex-wrap gap-2">
-              {BRAND_CHIPS.map((b) => (
-                <span
-                  key={b}
-                  className="text-[11px] px-3 py-1.5 rounded-full bg-zinc-950/60 border border-white/10 text-zinc-200"
+              <div className="mt-5 flex flex-wrap gap-2">
+                {BRAND_CHIPS.map((b) => (
+                  <span
+                    key={b}
+                    className="text-[11px] px-3 py-1.5 rounded-full bg-violet-500/10 border border-violet-500/15 text-violet-200/80 hover:bg-violet-500/20 hover:text-violet-100 transition cursor-default"
+                  >
+                    {b}
+                  </span>
+                ))}
+              </div>
+
+              <div className="mt-7 flex flex-col sm:flex-row gap-3">
+                <Link
+                  to="/catalog"
+                  className="rounded-2xl btn-accent px-7 py-3.5 text-center text-sm"
                 >
-                  {b}
-                </span>
-              ))}
-            </div>
+                  Ver catálogo →
+                </Link>
+                <Link
+                  to="/checkout"
+                  className="rounded-2xl border border-violet-500/20 px-7 py-3.5 text-violet-200 hover:bg-violet-500/10 text-center text-sm transition"
+                >
+                  Ir al carrito
+                </Link>
+                <a
+                  href="#como-comprar"
+                  className="rounded-2xl border border-white/10 px-7 py-3.5 text-zinc-300 hover:bg-white/5 text-center text-sm transition"
+                >
+                  Cómo comprar
+                </a>
+              </div>
 
-            <div className="mt-7 flex flex-col sm:flex-row gap-3">
-              <Link
-                to="/catalog"
-                className="rounded-2xl bg-white text-zinc-950 font-extrabold px-6 py-3 hover:opacity-90"
-              >
-                Ver catálogo
-              </Link>
-
-              <Link
-                to="/checkout"
-                className="rounded-2xl border border-white/10 px-6 py-3 text-zinc-200 hover:bg-white/5"
-              >
-                Ir al carrito
-              </Link>
-
-              <a
-                href="#como-comprar"
-                className="rounded-2xl border border-white/10 px-6 py-3 text-zinc-200 hover:bg-white/5"
-              >
-                Cómo comprar
-              </a>
-            </div>
-
-            <div className="mt-7 grid grid-cols-2 md:grid-cols-4 gap-3">
-              <MiniStat title="Entrega" value="Coordina" sub="por WhatsApp" />
-              <MiniStat title="Drops" value="Premium" sub="curados" />
-              <MiniStat title="Pagos" value="Flexible" sub="según acuerdo" />
-              <MiniStat title="Soporte" value="24/7" sub="DM + WhatsApp" />
+              <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-3">
+                <MiniStat title="Entrega" value="Coordina" sub="por WhatsApp" icon="📱" />
+                <MiniStat title="Drops" value="Premium" sub="curados" icon="💎" />
+                <MiniStat title="Pagos" value="Flexible" sub="según acuerdo" icon="💳" />
+                <MiniStat title="Soporte" value="24/7" sub="DM + WhatsApp" icon="🔥" />
+              </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* CATEGORÍAS */}
-      <section className="mx-auto max-w-6xl px-4 pt-10">
-        <div className="flex items-end justify-between gap-3">
-          <div>
-            <div className="text-xs text-zinc-400">Explora</div>
-            <h2 className="text-2xl font-extrabold tracking-tight">Categorías</h2>
+      <section className="mx-auto max-w-6xl px-4 pt-12">
+        <SR>
+          <div className="flex items-end justify-between gap-3">
+            <div>
+              <div className="text-xs text-violet-400 font-semibold uppercase tracking-wider">Explora</div>
+              <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight mt-1">Categorías</h2>
+            </div>
+            <Link to="/catalog" className="text-sm text-violet-300 hover:text-violet-200 underline transition">
+              Ver todo →
+            </Link>
           </div>
-          <Link to="/catalog" className="text-sm text-zinc-200 underline hover:text-white">
-            Ver todo
-          </Link>
-        </div>
+        </SR>
 
         {loading ? (
           <Loading label="Cargando categorías..." />
         ) : (
-          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {catGrid.map((c) => (
-              <Link
-                key={c.id}
-                to={`/catalog?cat=${c.id}`}
-                className="group rounded-3xl border border-white/10 bg-zinc-900/30 p-5 hover:bg-zinc-900/50 transition"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="font-extrabold tracking-tight text-lg">{c.name}</div>
-                  <div className="h-10 w-10 rounded-2xl bg-white/10 border border-white/10 grid place-items-center group-hover:bg-white/15">
-                    →
+          <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {catGrid.map((c, i) => (
+              <SR key={c.id} delay={i + 1} variant="scale">
+                <Link
+                  to={`/catalog?cat=${c.id}`}
+                  className="group rounded-3xl border border-violet-500/10 bg-zinc-900/40 p-5 card-hover block"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="font-extrabold tracking-tight text-lg group-hover:text-violet-200 transition-colors">{c.name}</div>
+                    <div className="h-10 w-10 rounded-2xl bg-violet-500/10 border border-violet-500/15 grid place-items-center group-hover:bg-violet-500/20 transition text-violet-300">
+                      →
+                    </div>
                   </div>
-                </div>
-                <div className="mt-2 text-sm text-zinc-400">
-                  Selección premium en {c.name.toLowerCase()}.
-                </div>
-              </Link>
+                  <div className="mt-2 text-sm text-zinc-500">
+                    Selección premium en {c.name.toLowerCase()}.
+                  </div>
+                </Link>
+              </SR>
             ))}
-            {catGrid.length === 0 ? (
-              <div className="text-sm text-zinc-400">Aún no hay categorías.</div>
-            ) : null}
+            {catGrid.length === 0 && (
+              <div className="text-sm text-zinc-500">Aún no hay categorías.</div>
+            )}
           </div>
         )}
       </section>
 
       {/* DESTACADOS */}
-      <section className="mx-auto max-w-6xl px-4 pt-10 pb-10">
-        <div className="flex items-end justify-between gap-3">
-          <div>
-            <div className="text-xs text-zinc-400">Últimos</div>
-            <h2 className="text-2xl font-extrabold tracking-tight">Drops destacados</h2>
+      <section className="mx-auto max-w-6xl px-4 pt-12 pb-10">
+        <SR>
+          <div className="flex items-end justify-between gap-3">
+            <div>
+              <div className="text-xs text-fuchsia-400 font-semibold uppercase tracking-wider">Últimos</div>
+              <h2 className="text-2xl sm:text-3xl font-extrabold tracking-tight mt-1">Drops destacados</h2>
+            </div>
+            <Link to="/catalog" className="text-sm text-violet-300 hover:text-violet-200 underline transition">
+              Ver catálogo →
+            </Link>
           </div>
-          <Link to="/catalog" className="text-sm text-zinc-200 underline hover:text-white">
-            Ver catálogo
-          </Link>
-        </div>
+        </SR>
 
         {loading ? (
           <Loading label="Cargando destacados..." />
         ) : (
           <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {featured.map((p) => (
-              <ProductCard
-                key={p.id}
-                product={p}
-                imageUrl={imageUrl}
-                onAdd={() => add(p)}
-                onQuickView={() => setQuick(p)}
-              />
+            {featured.map((p, i) => (
+              <SR key={p.id} delay={i + 1} variant="scale">
+                <ProductCard
+                  product={p}
+                  imageUrl={imageUrl}
+                  onAdd={() => add(p)}
+                  onQuickView={() => setQuick(p)}
+                />
+              </SR>
             ))}
-            {featured.length === 0 ? (
-              <div className="text-sm text-zinc-400">Aún no hay productos activos.</div>
-            ) : null}
+            {featured.length === 0 && (
+              <div className="text-sm text-zinc-500">Aún no hay productos activos.</div>
+            )}
           </div>
         )}
       </section>
 
       {/* COMO COMPRAR */}
       <section id="como-comprar" className="mx-auto max-w-6xl px-4 pb-12">
-        <div className="rounded-[2.25rem] border border-white/10 bg-zinc-900/30 p-7 md:p-10">
-          <div className="grid lg:grid-cols-2 gap-6 items-start">
-            <div>
-              <div className="text-xs text-zinc-400">Proceso simple</div>
-              <h2 className="mt-2 text-3xl font-extrabold tracking-tight">Cómo comprar en StiloBkno</h2>
-              <p className="mt-3 text-sm text-zinc-300 leading-relaxed">
-                Elegimos drops con estilo. Tú solo agregas, dejas notas (talla/color) y coordinamos por WhatsApp.
-              </p>
+        <SR>
+          <div className="rounded-[2.25rem] border border-violet-500/10 bg-mesh overflow-hidden">
+            <div className="p-6 sm:p-7 md:p-10">
+              <div className="grid lg:grid-cols-2 gap-8 items-start">
+                <div>
+                  <div className="text-xs text-violet-400 font-semibold uppercase tracking-wider">Proceso simple</div>
+                  <h2 className="mt-2 text-2xl sm:text-3xl font-extrabold tracking-tight">
+                    Cómo comprar en{" "}
+                    <span className="text-gradient">StiloBkno</span>
+                  </h2>
+                  <p className="mt-3 text-sm text-zinc-400 leading-relaxed">
+                    Elegimos drops con estilo. Tú solo agregas, dejas notas y coordinamos por WhatsApp.
+                  </p>
 
-              <div className="mt-5 space-y-3">
-                <Step n="1" title="Elige tu drop" desc="Explora categorías y productos premium." />
-                <Step n="2" title="Agrega al carrito" desc="En 1 click, queda listo el pedido." />
-                <Step n="3" title="Escribe tus notas" desc="Talla, color, entrega, comuna, etc." />
-                <Step n="4" title="Envía por WhatsApp" desc="Coordinamos y listo." />
-              </div>
+                  <div className="mt-6 space-y-3">
+                    <Step n="1" title="Elige tu drop" desc="Explora categorías y productos premium." />
+                    <Step n="2" title="Agrega al carrito" desc="En 1 click, queda listo el pedido." />
+                    <Step n="3" title="Escribe tus notas" desc="Talla, color, entrega, comuna, etc." />
+                    <Step n="4" title="Envía por WhatsApp" desc="Coordinamos y listo." />
+                  </div>
 
-              <div className="mt-6 flex flex-wrap gap-3">
-                <Link
-                  to="/catalog"
-                  className="rounded-2xl bg-white text-zinc-950 font-extrabold px-6 py-3 hover:opacity-90"
-                >
-                  Ir al catálogo
-                </Link>
-                <Link
-                  to="/checkout"
-                  className="rounded-2xl border border-white/10 px-6 py-3 text-zinc-200 hover:bg-white/5"
-                >
-                  Checkout
-                </Link>
-              </div>
-            </div>
+                  <div className="mt-7 flex flex-wrap gap-3">
+                    <Link to="/catalog" className="rounded-2xl btn-accent px-6 py-3 text-sm">
+                      Ir al catálogo
+                    </Link>
+                    <Link
+                      to="/checkout"
+                      className="rounded-2xl border border-violet-500/20 px-6 py-3 text-violet-200 hover:bg-violet-500/10 text-sm transition"
+                    >
+                      Checkout
+                    </Link>
+                  </div>
+                </div>
 
-            <div className="rounded-3xl border border-white/10 bg-gradient-to-br from-white/10 to-transparent p-6">
-              <div className="text-xs text-zinc-300">Garantía StiloBkno</div>
-              <h3 className="mt-2 text-xl font-extrabold tracking-tight">Compra con confianza</h3>
+                <SR delay={2}>
+                  <div className="rounded-3xl border border-violet-500/10 bg-zinc-950/50 p-6 glow-violet">
+                    <div className="text-xs text-violet-300 font-semibold">Garantía StiloBkno</div>
+                    <h3 className="mt-2 text-xl font-extrabold tracking-tight">Compra con confianza</h3>
 
-              <div className="mt-4 grid gap-3">
-                <Benefit title="Atención rápida" desc="Coordinación directa por WhatsApp." />
-                <Benefit title="Selección curada" desc="Drops premium con estilo tendencia." />
-                <Benefit title="Transparencia" desc="Estado del pedido controlado por admin." />
-                <Benefit title="Experiencia premium" desc="Diseño y navegación rápidos." />
-              </div>
-
-              <div className="mt-6 text-xs text-zinc-500">
-                Consejo: agrega en notas la talla y color exactos para cerrar la compra en minutos.
+                    <div className="mt-4 grid gap-3">
+                      <Benefit icon="⚡" title="Atención rápida" desc="Coordinación directa por WhatsApp." />
+                      <Benefit icon="💎" title="Selección curada" desc="Drops premium con estilo tendencia." />
+                      <Benefit icon="🔍" title="Transparencia" desc="Estado del pedido controlado por admin." />
+                      <Benefit icon="✨" title="Experiencia premium" desc="Diseño y navegación rápidos." />
+                    </div>
+                  </div>
+                </SR>
               </div>
             </div>
           </div>
-        </div>
+        </SR>
       </section>
 
-      {/* FOOTER */}
-      <footer className="border-t border-white/10 bg-zinc-950">
-        <div className="mx-auto max-w-6xl px-4 py-10 flex flex-col md:flex-row gap-6 md:items-center md:justify-between">
-          <div>
-            <div className="font-extrabold tracking-tight text-lg">StiloBkno</div>
-            <div className="text-xs text-zinc-500">Streetwear premium • Drops curados</div>
-          </div>
-
-          <div className="flex flex-wrap gap-3 text-sm">
-            <Link to="/catalog" className="text-zinc-200 hover:text-white">
-              Catálogo
-            </Link>
-            <Link to="/checkout" className="text-zinc-200 hover:text-white">
-              Carrito
-            </Link>
-            <a href="#como-comprar" className="text-zinc-200 hover:text-white">
-              Cómo comprar
-            </a>
-            <a href="/admin/login" className="text-zinc-200 hover:text-white">
-              Admin
-            </a>
-          </div>
-        </div>
-      </footer>
+      <Footer />
 
       <ProductModal
         open={!!quick}
         product={quick}
         imageUrl={imageUrl}
-        onAdd={() => {
-          add(quick);
-          setQuick(null);
-        }}
+        onAdd={() => { add(quick); setQuick(null); }}
         onClose={() => setQuick(null)}
       />
     </div>
   );
 }
 
-function MiniStat({ title, value, sub }) {
+function MiniStat({ title, value, sub, icon }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-zinc-950/30 p-4">
-      <div className="text-xs text-zinc-400">{title}</div>
-      <div className="mt-1 text-lg font-extrabold">{value}</div>
+    <div className="rounded-2xl border border-violet-500/10 bg-zinc-900/40 p-4 card-hover">
+      <div className="flex items-center gap-2">
+        <span className="text-sm">{icon}</span>
+        <span className="text-xs text-zinc-500">{title}</span>
+      </div>
+      <div className="mt-1.5 text-lg font-extrabold text-gradient-subtle">{value}</div>
       <div className="text-xs text-zinc-500">{sub}</div>
     </div>
   );
@@ -300,23 +311,26 @@ function MiniStat({ title, value, sub }) {
 
 function Step({ n, title, desc }) {
   return (
-    <div className="flex gap-3">
-      <div className="h-8 w-8 rounded-2xl bg-white text-zinc-950 grid place-items-center font-extrabold">
+    <div className="flex gap-3 group">
+      <div className="h-8 w-8 rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white grid place-items-center font-extrabold text-sm shrink-0 shadow-lg shadow-violet-500/20 group-hover:shadow-violet-500/40 transition-shadow">
         {n}
       </div>
       <div>
         <div className="font-semibold">{title}</div>
-        <div className="text-sm text-zinc-400">{desc}</div>
+        <div className="text-sm text-zinc-500">{desc}</div>
       </div>
     </div>
   );
 }
 
-function Benefit({ title, desc }) {
+function Benefit({ icon, title, desc }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-zinc-950/30 p-4">
-      <div className="font-semibold">{title}</div>
-      <div className="text-sm text-zinc-400 mt-1">{desc}</div>
+    <div className="rounded-2xl border border-violet-500/10 bg-zinc-900/30 p-4 hover:border-violet-500/25 transition">
+      <div className="flex items-center gap-2">
+        <span>{icon}</span>
+        <span className="font-semibold">{title}</span>
+      </div>
+      <div className="text-sm text-zinc-500 mt-1">{desc}</div>
     </div>
   );
 }

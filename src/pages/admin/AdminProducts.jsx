@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { supabase, BUSINESS_ID, STORAGE_BUCKET } from "../../lib/supabase";
 import Loading from "../../components/Loading";
 import { moneyCLP, slug } from "../../utils/format";

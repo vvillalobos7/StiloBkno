@@ -1,5 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import Navbar from "../components/Navbar";
+import Footer from "../components/Footer";
 import Loading from "../components/Loading";
 import { supabase } from "../lib/supabase";
 import { moneyCLP } from "../utils/format";
@@ -25,7 +27,7 @@ const STATUS_META = {
 const badgeClass = (status) => {
   switch (status) {
     case "new":
-      return "bg-amber-400/15 text-amber-200 border border-amber-400/20";
+      return "bg-violet-400/15 text-violet-200 border border-violet-400/20";
     case "confirmed":
       return "bg-sky-400/15 text-sky-200 border border-sky-400/20";
     case "shipped":
@@ -35,7 +37,7 @@ const badgeClass = (status) => {
     case "cancelled":
       return "bg-rose-400/15 text-rose-200 border border-rose-400/20";
     default:
-      return "bg-white/10 text-zinc-200 border border-white/10";
+      return "bg-white/10 text-zinc-200 border border-violet-500/15";
   }
 };
 
@@ -91,15 +93,16 @@ function Timeline({ status }) {
             "text-[11px] px-3 py-1 rounded-full border",
             cancelled
               ? "border-rose-400/20 bg-rose-400/10 text-rose-200"
-              : "border-white/10 bg-white/5 text-zinc-200",
+              : "border-violet-500/15 bg-white/5 text-zinc-200",
           ].join(" ")}
         >
           Estado actual: <span className="font-semibold">{currentLabel}</span>
         </div>
       </div>
 
-      <div className="mt-3 rounded-2xl border border-white/10 bg-zinc-950/30 p-4">
-        <div className="grid grid-cols-4 gap-3">
+      <div className="mt-3 rounded-2xl border border-violet-500/15 bg-zinc-950/30 p-4">
+        {/* Desktop: horizontal (hidden on mobile) */}
+        <div className="hidden sm:grid grid-cols-4 gap-3">
           {STATUS_FLOW.map((s, i) => {
             const done = !cancelled && i <= idx;
             const isCurrent = !cancelled && i === idx;
@@ -109,12 +112,12 @@ function Timeline({ status }) {
                 <div className="flex items-center gap-2">
                   <div
                     className={[
-                      "h-3.5 w-3.5 rounded-full border",
+                      "h-3.5 w-3.5 rounded-full border shrink-0",
                       cancelled
                         ? "bg-rose-400/30 border-rose-400/30"
                         : done
                         ? "bg-white border-white/60"
-                        : "bg-white/10 border-white/10",
+                        : "bg-white/10 border-violet-500/15",
                       isCurrent ? "ring-4 ring-white/10" : "",
                     ].join(" ")}
                   />
@@ -138,10 +141,58 @@ function Timeline({ status }) {
                   </div>
 
                   {isCurrent ? (
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-white text-zinc-950 font-extrabold">
+                    <span className="text-[10px] px-2 py-0.5 rounded-full btn-accent">
                       AHORA
                     </span>
                   ) : null}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Mobile: vertical */}
+        <div className="sm:hidden space-y-3">
+          {STATUS_FLOW.map((s, i) => {
+            const done = !cancelled && i <= idx;
+            const isCurrent = !cancelled && i === idx;
+
+            return (
+              <div key={s} className="flex items-center gap-3">
+                <div className="flex flex-col items-center">
+                  <div
+                    className={[
+                      "h-4 w-4 rounded-full border shrink-0",
+                      cancelled
+                        ? "bg-rose-400/30 border-rose-400/30"
+                        : done
+                        ? "bg-white border-white/60"
+                        : "bg-white/10 border-violet-500/15",
+                      isCurrent ? "ring-4 ring-white/10" : "",
+                    ].join(" ")}
+                  />
+                  {i < STATUS_FLOW.length - 1 && (
+                    <div
+                      className={`w-[2px] h-4 mt-1 ${
+                        cancelled
+                          ? "bg-rose-400/20"
+                          : done
+                          ? "bg-white/40"
+                          : "bg-white/10"
+                      }`}
+                    />
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2 flex-1">
+                  <span className={`text-sm ${done ? "text-zinc-200 font-medium" : "text-zinc-500"}`}>
+                    {STATUS_LABEL[s]}
+                  </span>
+                  {isCurrent && (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full btn-accent">
+                      AHORA
+                    </span>
+                  )}
                 </div>
               </div>
             );
@@ -201,11 +252,11 @@ export default function MyOrders() {
   }, [orders]);
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100">
+    <div className="min-h-screen flex flex-col bg-zinc-950 text-zinc-100">
       <Navbar subtitle="Mis pedidos" />
 
-      <main className="mx-auto max-w-5xl px-4 py-8">
-        <div className="rounded-3xl border border-white/10 bg-zinc-900/30 p-6">
+      <main className="mx-auto max-w-5xl w-full px-4 py-6 sm:py-8 flex-1">
+        <div className="rounded-3xl border border-violet-500/15 bg-zinc-900/40 p-5 sm:p-6">
           <div className="flex flex-col md:flex-row md:items-end gap-3">
             <div>
               <h1 className="text-2xl font-extrabold tracking-tight">Mis pedidos</h1>
@@ -228,21 +279,21 @@ export default function MyOrders() {
           ) : !user ? (
             <div className="mt-6 text-sm text-zinc-300">
               Debes iniciar sesión.{" "}
-              <a className="underline text-zinc-200" href="/auth">
+              <Link className="underline text-zinc-200" to="/auth">
                 Ir a login
-              </a>
+              </Link>
             </div>
           ) : orders.length === 0 ? (
             <div className="mt-6 text-sm text-zinc-300">
               Aún no tienes pedidos.{" "}
-              <a className="underline text-zinc-200" href="/catalog">
+              <Link className="underline text-zinc-200" to="/catalog">
                 Ir al catálogo
-              </a>
+              </Link>
             </div>
           ) : (
             <div className="mt-6 space-y-3">
               {orders.map((o) => (
-                <div key={o.id} className="rounded-3xl border border-white/10 bg-zinc-950/30 p-5">
+                <div key={o.id} className="rounded-3xl border border-violet-500/15 bg-zinc-950/30 p-4 sm:p-5">
                   <div className="flex flex-col md:flex-row md:items-start gap-4">
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
@@ -266,7 +317,7 @@ export default function MyOrders() {
                       </div>
 
                       {o.notes ? (
-                        <div className="mt-4 text-xs text-zinc-200 border border-white/10 bg-white/5 rounded-2xl px-3 py-2">
+                        <div className="mt-4 text-xs text-zinc-200 border border-violet-500/15 bg-white/5 rounded-2xl px-3 py-2">
                           <span className="text-zinc-400">📝 Nota:</span> {o.notes}
                         </div>
                       ) : null}
@@ -275,14 +326,14 @@ export default function MyOrders() {
                     </div>
                   </div>
 
-                  <div className="mt-5 border-t border-white/10 pt-4">
+                  <div className="mt-5 border-t border-violet-500/15 pt-4">
                     <div className="text-xs text-zinc-500 mb-3">Detalle</div>
 
                     <div className="space-y-2">
                       {(o.order_items ?? []).map((it) => (
                         <div
                           key={it.id}
-                          className="flex items-start justify-between gap-3 rounded-2xl border border-white/10 bg-zinc-950/40 px-3 py-2"
+                          className="flex items-start justify-between gap-3 rounded-2xl border border-violet-500/15 bg-zinc-950/40 px-3 py-2"
                         >
                           <div className="min-w-0">
                             <div className="text-sm text-zinc-200 truncate">
@@ -313,6 +364,8 @@ export default function MyOrders() {
           )}
         </div>
       </main>
+
+      <Footer />
     </div>
   );
 }

@@ -1,25 +1,34 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Navbar from "../../components/Navbar";
+import Footer from "../../components/Footer";
 import { supabase } from "../../lib/supabase";
+import { useToast } from "../../components/Toast";
 
 export default function Auth() {
   const nav = useNavigate();
+  const { success, error: showError } = useToast();
 
   const [mode, setMode] = useState("login"); // login | register
   const [loading, setLoading] = useState(false);
 
+  // Login fields
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
+  // Register fields
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [phone, setPhone] = useState("");
+
   useEffect(() => {
-    // Si ya hay sesión, manda al perfil
     supabase.auth.getUser().then(({ data }) => {
       if (data?.user) nav("/profile", { replace: true });
     });
   }, [nav]);
 
   const login = async () => {
+    if (!email.trim() || !password) return showError("Completa email y contraseña.");
     setLoading(true);
     try {
       const { error } = await supabase.auth.signInWithPassword({
@@ -28,45 +37,71 @@ export default function Auth() {
       });
       if (error) throw error;
 
+      success("¡Bienvenido de vuelta! 👋");
       nav("/profile", { replace: true });
     } catch (e) {
-      alert(e.message ?? e);
+      showError(e.message ?? e);
     } finally {
       setLoading(false);
     }
   };
 
   const register = async () => {
+    if (!firstName.trim()) return showError("Ingresa tu nombre.");
+    if (!lastName.trim()) return showError("Ingresa tu apellido.");
+    if (!email.trim()) return showError("Ingresa tu email.");
+    if (!phone.trim()) return showError("Ingresa tu teléfono.");
+    if (!password || password.length < 6) return showError("La contraseña debe tener al menos 6 caracteres.");
+
     setLoading(true);
     try {
+      const fullName = `${firstName.trim()} ${lastName.trim()}`;
+
       const { data, error } = await supabase.auth.signUp({
         email: email.trim(),
         password,
+        options: {
+          data: {
+            full_name: fullName,
+            phone: phone.trim(),
+          },
+        },
       });
       if (error) throw error;
 
-      // Si tu proyecto tiene confirmación por email activada:
-      // el usuario deberá confirmar en el correo.
+      // If user is created and we have a session, save profile data
+      if (data?.user) {
+        const { error: profileErr } = await supabase
+          .from("profiles")
+          .upsert({
+            id: data.user.id,
+            full_name: fullName,
+            phone: phone.trim(),
+          });
+
+        if (profileErr) console.error("Error guardando perfil:", profileErr);
+      }
+
+      // If email confirmation is required
       if (!data?.session) {
-        alert("Registro exitoso ✅ Revisa tu correo para confirmar la cuenta.");
+        success("Cuenta creada ✅ Revisa tu correo para confirmar la cuenta.");
         setMode("login");
         return;
       }
 
-      // Si no requiere confirmación, entra al perfil directo
+      success("¡Cuenta creada! Bienvenido 🎉");
       nav("/profile", { replace: true });
     } catch (e) {
-      alert(e.message ?? e);
+      showError(e.message ?? e);
     } finally {
       setLoading(false);
     }
   };
 
   const forgotPassword = async () => {
-    if (!email.trim()) return alert("Escribe tu email primero.");
+    if (!email.trim()) return showError("Escribe tu email primero.");
     setLoading(true);
     try {
-      // Debe apuntar a tu ruta /reset-password (ya la tienes)
       const redirectTo = `${window.location.origin}/reset-password`;
 
       const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
@@ -74,63 +109,115 @@ export default function Auth() {
       });
       if (error) throw error;
 
-      alert("Listo ✅ Te envié un correo para recuperar la contraseña.");
+      success("Te envié un correo para recuperar la contraseña ✅");
     } catch (e) {
-      alert(e.message ?? e);
+      showError(e.message ?? e);
     } finally {
       setLoading(false);
     }
   };
 
-  return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100">
-      <Navbar subtitle="Acceso • Registro • Recuperación" />
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (mode === "login") login();
+      else register();
+    }
+  };
 
-      <main className="mx-auto max-w-md px-4 py-10">
-        <div className="rounded-3xl border border-white/10 bg-zinc-900/30 p-6">
+  return (
+    <div className="min-h-screen flex flex-col bg-zinc-950 text-zinc-100">
+      <Navbar subtitle="Acceso • Registro" />
+
+      <main className="mx-auto max-w-md w-full px-4 py-8 sm:py-10 flex-1">
+        <div className="rounded-3xl border border-violet-500/15 bg-zinc-900/40 p-5 sm:p-6">
+          {/* Tab toggle */}
           <div className="flex items-center gap-2">
             <button
               onClick={() => setMode("login")}
-              className={`flex-1 rounded-2xl px-4 py-2 text-sm font-semibold border ${
+              className={`flex-1 rounded-2xl px-4 py-2.5 text-sm font-semibold border transition ${
                 mode === "login"
                   ? "bg-white text-zinc-950 border-white"
-                  : "border-white/10 text-zinc-200 hover:bg-white/5"
+                  : "border-violet-500/15 text-zinc-200 hover:bg-violet-500/10"
               }`}
             >
               Iniciar sesión
             </button>
             <button
               onClick={() => setMode("register")}
-              className={`flex-1 rounded-2xl px-4 py-2 text-sm font-semibold border ${
+              className={`flex-1 rounded-2xl px-4 py-2.5 text-sm font-semibold border transition ${
                 mode === "register"
                   ? "bg-white text-zinc-950 border-white"
-                  : "border-white/10 text-zinc-200 hover:bg-white/5"
+                  : "border-violet-500/15 text-zinc-200 hover:bg-violet-500/10"
               }`}
             >
               Crear cuenta
             </button>
           </div>
 
-          <div className="mt-5 grid gap-3">
-            <label className="grid gap-2">
-              <span className="text-xs text-zinc-400">Email</span>
+          <div className="mt-5 grid gap-3" onKeyDown={handleKeyDown}>
+            {mode === "register" && (
+              <>
+                {/* Name fields */}
+                <div className="grid grid-cols-2 gap-3">
+                  <label className="grid gap-1.5">
+                    <span className="text-xs text-zinc-400">Nombre *</span>
+                    <input
+                      className="rounded-2xl border border-violet-500/15 bg-zinc-950/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-violet-500/30"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      placeholder="Ej: Vicente"
+                    />
+                  </label>
+                  <label className="grid gap-1.5">
+                    <span className="text-xs text-zinc-400">Apellido *</span>
+                    <input
+                      className="rounded-2xl border border-violet-500/15 bg-zinc-950/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-violet-500/30"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      placeholder="Ej: Alonso"
+                    />
+                  </label>
+                </div>
+
+                <label className="grid gap-1.5">
+                  <span className="text-xs text-zinc-400">Teléfono *</span>
+                  <input
+                    className="rounded-2xl border border-violet-500/15 bg-zinc-950/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-violet-500/30"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="+56 9 1234 5678"
+                  />
+                  <span className="text-[11px] text-zinc-500">
+                    Se usará para coordinar pedidos por WhatsApp.
+                  </span>
+                </label>
+              </>
+            )}
+
+            <label className="grid gap-1.5">
+              <span className="text-xs text-zinc-400">Email *</span>
               <input
-                className="rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-white/20"
+                type="email"
+                className="rounded-2xl border border-violet-500/15 bg-zinc-950/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-violet-500/30"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="tuemail@gmail.com"
               />
             </label>
 
-            <label className="grid gap-2">
-              <span className="text-xs text-zinc-400">Contraseña</span>
+            <label className="grid gap-1.5">
+              <span className="text-xs text-zinc-400">Contraseña *</span>
               <input
                 type="password"
-                className="rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-white/20"
+                className="rounded-2xl border border-violet-500/15 bg-zinc-950/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-violet-500/30"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
               />
+              {mode === "register" && (
+                <span className="text-[11px] text-zinc-500">Mínimo 6 caracteres.</span>
+              )}
             </label>
 
             {mode === "login" ? (
@@ -138,7 +225,7 @@ export default function Auth() {
                 <button
                   disabled={loading}
                   onClick={login}
-                  className="rounded-2xl bg-white text-zinc-950 font-extrabold px-6 py-3 hover:opacity-90 disabled:opacity-60"
+                  className="rounded-2xl btn-accent px-6 py-3 hover:opacity-90 disabled:opacity-60 transition"
                 >
                   {loading ? "Entrando..." : "Entrar"}
                 </button>
@@ -146,7 +233,7 @@ export default function Auth() {
                 <button
                   disabled={loading}
                   onClick={forgotPassword}
-                  className="rounded-2xl border border-white/10 px-6 py-3 text-sm text-zinc-200 hover:bg-white/5 disabled:opacity-60"
+                  className="rounded-2xl border border-violet-500/15 px-6 py-3 text-sm text-zinc-200 hover:bg-violet-500/10 disabled:opacity-60 transition"
                 >
                   Olvidé mi contraseña
                 </button>
@@ -155,13 +242,31 @@ export default function Auth() {
               <button
                 disabled={loading}
                 onClick={register}
-                className="rounded-2xl bg-white text-zinc-950 font-extrabold px-6 py-3 hover:opacity-90 disabled:opacity-60"
+                className="rounded-2xl btn-accent px-6 py-3 hover:opacity-90 disabled:opacity-60 transition"
               >
-                {loading ? "Creando..." : "Crear cuenta"}
+                {loading ? "Creando cuenta..." : "Crear cuenta"}
               </button>
             )}
 
-            <div className="text-xs text-zinc-500 mt-2">
+            <div className="text-xs text-zinc-500 mt-1">
+              {mode === "register" ? (
+                <>
+                  Al crear tu cuenta, tus datos se usarán para coordinar pedidos y notificarte sobre el estado de tus compras.
+                </>
+              ) : (
+                <>
+                  ¿No tienes cuenta?{" "}
+                  <button
+                    onClick={() => setMode("register")}
+                    className="underline text-zinc-200"
+                  >
+                    Regístrate aquí
+                  </button>
+                </>
+              )}
+            </div>
+
+            <div className="text-xs text-zinc-500">
               Volver al{" "}
               <Link className="underline text-zinc-200" to="/catalog">
                 catálogo
@@ -171,6 +276,8 @@ export default function Auth() {
           </div>
         </div>
       </main>
+
+      <Footer />
     </div>
   );
 }

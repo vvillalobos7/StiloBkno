@@ -1,4 +1,4 @@
-import AdminOrders from "./pages/admin/AdminOrders"; // <-- agrega
+﻿import AdminOrders from "./pages/admin/AdminOrders"; // <-- agrega
 
 // ... dentro de <Routes> agrega:
 <Route

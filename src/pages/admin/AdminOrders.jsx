@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+﻿import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase, BUSINESS_ID } from "../../lib/supabase";
 import Loading from "../../components/Loading";
 import { moneyCLP } from "../../utils/format";
@@ -24,7 +24,7 @@ const STATUS_META = {
 const badgeClass = (status) => {
   switch (status) {
     case "new":
-      return "bg-amber-400/15 text-amber-200 border border-amber-400/20";
+      return "bg-violet-400/15 text-violet-200 border border-violet-400/20";
     case "confirmed":
       return "bg-sky-400/15 text-sky-200 border border-sky-400/20";
     case "shipped":

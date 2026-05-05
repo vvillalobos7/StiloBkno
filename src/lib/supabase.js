@@ -7,4 +7,6 @@ export const supabase = createClient(
 
 export const BUSINESS_ID = import.meta.env.VITE_BUSINESS_ID;
 
+export const STORE_WHATSAPP = import.meta.env.VITE_STORE_WHATSAPP || "";
+
 export const STORAGE_BUCKET = "product-images";

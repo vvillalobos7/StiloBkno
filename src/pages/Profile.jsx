@@ -1,13 +1,18 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import Navbar from "../components/Navbar";
+import Footer from "../components/Footer";
 import Loading from "../components/Loading";
 import { supabase } from "../lib/supabase";
+import { useToast } from "../components/Toast";
 
 function uid() {
   return crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
 }
 
 export default function Profile() {
+  const { success, error: showError } = useToast();
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -76,7 +81,7 @@ export default function Profile() {
   };
 
   const save = async () => {
-    if (!user) return alert("Debes iniciar sesión.");
+    if (!user) return showError("Debes iniciar sesión.");
     setSaving(true);
 
     try {
@@ -95,10 +100,10 @@ export default function Profile() {
 
       setFile(null);
       await load();
-      alert("Perfil actualizado ✅");
+      success("Perfil actualizado ✅");
     } catch (e) {
       console.error(e);
-      alert(`Error: ${e.message ?? e}`);
+      showError(`Error: ${e.message ?? e}`);
     } finally {
       setSaving(false);
     }
@@ -116,12 +121,12 @@ export default function Profile() {
   }, [profile?.full_name]);
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100">
+    <div className="min-h-screen flex flex-col bg-zinc-950 text-zinc-100">
       <Navbar subtitle="Mi perfil" />
 
-      <main className="mx-auto max-w-3xl px-4 py-8">
-        <div className="rounded-3xl border border-white/10 bg-zinc-900/30 p-6">
-          <div className="flex items-start justify-between gap-3">
+      <main className="mx-auto max-w-3xl w-full px-4 py-6 sm:py-8 flex-1">
+        <div className="rounded-3xl border border-violet-500/15 bg-zinc-900/40 p-5 sm:p-6">
+          <div className="flex items-start justify-between gap-3 flex-wrap">
             <div>
               <h1 className="text-2xl font-extrabold tracking-tight">Perfil</h1>
               <p className="text-sm text-zinc-400 mt-1">Edita tu nombre, teléfono y foto.</p>
@@ -130,7 +135,7 @@ export default function Profile() {
             {user ? (
               <button
                 onClick={signOut}
-                className="rounded-2xl border border-white/10 px-4 py-2 text-sm text-zinc-200 hover:bg-white/5"
+                className="rounded-2xl border border-violet-500/15 px-4 py-2 text-sm text-zinc-200 hover:bg-violet-500/10"
               >
                 Cerrar sesión
               </button>
@@ -142,18 +147,19 @@ export default function Profile() {
           ) : !user ? (
             <div className="mt-6 text-sm text-zinc-300">
               Debes iniciar sesión.{" "}
-              <a className="underline text-zinc-200" href="/auth">
+              <Link className="underline text-zinc-200" to="/auth">
                 Ir a login
-              </a>
+              </Link>
             </div>
           ) : (
             <div className="mt-6 grid gap-4">
-              <div className="flex items-center gap-4">
-                <div className="h-20 w-20 rounded-3xl overflow-hidden bg-white/5 border border-white/10">
+              {/* Avatar */}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                <div className="h-20 w-20 rounded-3xl overflow-hidden bg-white/5 border border-violet-500/15 shrink-0">
                   {avatarSignedUrl ? (
                     <img className="h-full w-full object-cover" src={avatarSignedUrl} alt="avatar" />
                   ) : (
-                    <div className="h-full w-full grid place-items-center text-zinc-300 font-extrabold">
+                    <div className="h-full w-full grid place-items-center text-zinc-300 font-extrabold text-xl">
                       {initials}
                     </div>
                   )}
@@ -176,7 +182,7 @@ export default function Profile() {
               <label className="grid gap-2">
                 <span className="text-xs text-zinc-400">Nombre</span>
                 <input
-                  className="rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-white/20"
+                  className="rounded-2xl border border-violet-500/15 bg-zinc-950/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-violet-500/30"
                   value={profile?.full_name ?? ""}
                   onChange={(e) => setProfile((p) => ({ ...p, full_name: e.target.value }))}
                   placeholder="Tu nombre"
@@ -186,17 +192,33 @@ export default function Profile() {
               <label className="grid gap-2">
                 <span className="text-xs text-zinc-400">Teléfono</span>
                 <input
-                  className="rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-white/20"
+                  className="rounded-2xl border border-violet-500/15 bg-zinc-950/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-violet-500/30"
                   value={profile?.phone ?? ""}
                   onChange={(e) => setProfile((p) => ({ ...p, phone: e.target.value }))}
                   placeholder="Ej: +56 9 1234 5678"
                 />
               </label>
 
+              {/* Quick links */}
+              <div className="flex flex-wrap gap-2">
+                <Link
+                  to="/addresses"
+                  className="rounded-2xl border border-violet-500/15 px-4 py-2.5 text-sm text-zinc-200 hover:bg-violet-500/10 transition"
+                >
+                  📍 Mis direcciones
+                </Link>
+                <Link
+                  to="/my-orders"
+                  className="rounded-2xl border border-violet-500/15 px-4 py-2.5 text-sm text-zinc-200 hover:bg-violet-500/10 transition"
+                >
+                  📦 Mis pedidos
+                </Link>
+              </div>
+
               <button
                 onClick={save}
                 disabled={saving}
-                className="rounded-2xl bg-white text-zinc-950 font-extrabold px-6 py-3 hover:opacity-90 disabled:opacity-60"
+                className="rounded-2xl btn-accent px-6 py-3 hover:opacity-90 disabled:opacity-60 transition"
               >
                 {saving ? "Guardando..." : "Guardar cambios"}
               </button>
@@ -204,6 +226,8 @@ export default function Profile() {
           )}
         </div>
       </main>
+
+      <Footer />
     </div>
   );
 }

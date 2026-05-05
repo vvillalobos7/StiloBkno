@@ -1,14 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import Navbar from "../components/Navbar";
+import Footer from "../components/Footer";
 import Loading from "../components/Loading";
 import ProductCard from "../components/ProductCard";
 import ProductModal from "../components/ProductModal";
+import SR from "../components/ScrollReveal";
 import { supabase, BUSINESS_ID, STORAGE_BUCKET } from "../lib/supabase";
 import { useCart } from "../store/cart";
 import { moneyCLP } from "../utils/format";
-
-const BRAND_CHIPS = ["Nike", "Jordan", "Hugo Boss", "Calvin Klein", "Coach", "New Era", "Puma", "Adidas"];
 
 function variantLabel(v) {
   const parts = [];
@@ -16,6 +16,15 @@ function variantLabel(v) {
   if (v.color) parts.push(v.color);
   return parts.length ? parts.join(" • ") : "Variante";
 }
+
+const SORT_OPTIONS = [
+  { value: "newest", label: "Más nuevo" },
+  { value: "oldest", label: "Más antiguo" },
+  { value: "price_asc", label: "Precio ↑" },
+  { value: "price_desc", label: "Precio ↓" },
+  { value: "name_asc", label: "A → Z" },
+  { value: "name_desc", label: "Z → A" },
+];
 
 export default function Catalog() {
   const [params] = useSearchParams();
@@ -29,6 +38,11 @@ export default function Catalog() {
 
   const [q, setQ] = useState("");
   const [cat, setCat] = useState("all");
+  const [sort, setSort] = useState("newest");
+  const [priceMin, setPriceMin] = useState("");
+  const [priceMax, setPriceMax] = useState("");
+  const [viewMode, setViewMode] = useState("grid"); // grid | list
+  const [showFilters, setShowFilters] = useState(false);
 
   const [quick, setQuick] = useState(null);
 
@@ -93,19 +107,48 @@ export default function Catalog() {
 
   const filtered = useMemo(() => {
     const term = q.trim().toLowerCase();
-    return products.filter((p) => {
+    const pMin = priceMin ? Number(priceMin) : 0;
+    const pMax = priceMax ? Number(priceMax) : Infinity;
+
+    let result = products.filter((p) => {
       const okTerm =
         !term ||
         p.name?.toLowerCase().includes(term) ||
         p.description?.toLowerCase().includes(term);
 
       const okCat = cat === "all" || p.category_id === cat;
-      return okTerm && okCat;
+      const price = Number(p.price ?? 0);
+      const okPrice = price >= pMin && price <= pMax;
+
+      return okTerm && okCat && okPrice;
     });
-  }, [products, q, cat]);
+
+    // Sort
+    switch (sort) {
+      case "newest":
+        result.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+        break;
+      case "oldest":
+        result.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+        break;
+      case "price_asc":
+        result.sort((a, b) => Number(a.price ?? 0) - Number(b.price ?? 0));
+        break;
+      case "price_desc":
+        result.sort((a, b) => Number(b.price ?? 0) - Number(a.price ?? 0));
+        break;
+      case "name_asc":
+        result.sort((a, b) => (a.name ?? "").localeCompare(b.name ?? ""));
+        break;
+      case "name_desc":
+        result.sort((a, b) => (b.name ?? "").localeCompare(a.name ?? ""));
+        break;
+    }
+
+    return result;
+  }, [products, q, cat, sort, priceMin, priceMax]);
 
   const getVariants = (productId) => variantsByProduct[productId] ?? [];
-
   const getTotalStock = (productId) =>
     getVariants(productId).reduce((acc, v) => acc + Number(v.stock ?? 0), 0);
 
@@ -147,69 +190,278 @@ export default function Catalog() {
     setSelectedVariantId("");
   };
 
+  // Active filter chips
+  const activeFilters = useMemo(() => {
+    const chips = [];
+    if (cat !== "all") {
+      const catName = categories.find((c) => c.id === cat)?.name;
+      if (catName) chips.push({ key: "cat", label: catName, clear: () => setCat("all") });
+    }
+    if (priceMin) chips.push({ key: "pmin", label: `Desde $${moneyCLP(priceMin)}`, clear: () => setPriceMin("") });
+    if (priceMax) chips.push({ key: "pmax", label: `Hasta $${moneyCLP(priceMax)}`, clear: () => setPriceMax("") });
+    if (q.trim()) chips.push({ key: "q", label: `"${q.trim()}"`, clear: () => setQ("") });
+    return chips;
+  }, [cat, priceMin, priceMax, q, categories]);
+
+  const clearAll = () => {
+    setQ("");
+    setCat("all");
+    setSort("newest");
+    setPriceMin("");
+    setPriceMax("");
+  };
+
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen flex flex-col">
       <Navbar subtitle="Streetwear premium • Drops tendencia" />
 
-      <section className="mx-auto max-w-6xl px-4 pt-8 pb-5">
-        <div className="rounded-3xl border border-white/10 bg-gradient-to-br from-white/10 to-white/5 p-6 overflow-hidden relative">
-          <div className="absolute -top-24 -right-24 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
-          <div className="absolute -bottom-24 -left-24 h-64 w-64 rounded-full bg-white/10 blur-3xl" />
+      {/* Header */}
+      <section className="mx-auto max-w-6xl w-full px-4 pt-6 sm:pt-8 pb-4">
+        <div className="rounded-3xl border border-violet-500/15 bg-mesh p-5 sm:p-6 overflow-hidden relative">
+          <div className="absolute -top-24 -right-24 h-64 w-64 rounded-full bg-violet-500/15 blur-[80px]" />
+          <div className="absolute -bottom-24 -left-24 h-64 w-64 rounded-full bg-fuchsia-500/10 blur-[80px]" />
 
           <div className="relative">
-            <div className="text-xs text-zinc-300">StiloBkno • Curated Drops</div>
-            <h2 className="mt-2 text-3xl md:text-4xl font-extrabold tracking-tight">
-              Viste tendencia. <span className="text-zinc-300">Compra rápido. Envía por WhatsApp.</span>
-            </h2>
-            <p className="mt-2 text-sm text-zinc-300 max-w-2xl">
-              Catálogo premium con estilo street & luxe. Ahora con variantes por talla y color.
+            <div className="text-xs text-violet-400 font-semibold uppercase tracking-wider">StiloBkno • Curated Drops</div>
+            <h1 className="mt-2 text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight">
+              Viste tendencia. <span className="text-gradient">Compra rápido.</span>
+            </h1>
+            <p className="mt-2 text-sm text-zinc-400 max-w-2xl">
+              Catálogo premium con estilo street & luxe. Filtra, busca y encuentra tu drop.
             </p>
-
-            <div className="mt-4 flex flex-wrap gap-2">
-              {BRAND_CHIPS.map((b) => (
-                <span
-                  key={b}
-                  className="text-[11px] px-3 py-1.5 rounded-full bg-zinc-950/60 border border-white/10 text-zinc-200"
-                >
-                  {b}
-                </span>
-              ))}
-            </div>
           </div>
         </div>
       </section>
 
-      <section className="mx-auto max-w-6xl px-4 pb-10">
-        <div className="flex flex-col md:flex-row gap-3 md:items-center">
-          <input
-            className="w-full md:w-[420px] rounded-2xl border border-white/10 bg-zinc-900/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-white/20"
-            placeholder="Buscar (ej: polerón negro, jordan, coach...)"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-          />
+      {/* Filters bar */}
+      <section className="mx-auto max-w-6xl w-full px-4 pb-2">
+        <div className="flex flex-col gap-3">
+          {/* Main row */}
+          <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+            {/* Search */}
+            <div className="relative flex-1">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-violet-400 text-sm">🔍</span>
+              <input
+                className="w-full rounded-2xl border border-violet-500/15 bg-zinc-900/40 pl-10 pr-4 py-3 text-sm outline-none focus:ring-2 focus:ring-violet-500/30 transition"
+                placeholder="Buscar producto..."
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+              />
+            </div>
 
-          <select
-            className="rounded-2xl border border-white/10 bg-zinc-900/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-white/20"
-            value={cat}
-            onChange={(e) => setCat(e.target.value)}
-          >
-            <option value="all">Todas las categorías</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+            {/* Category */}
+            <select
+              className="rounded-2xl border border-violet-500/15 bg-zinc-900/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-violet-500/30"
+              value={cat}
+              onChange={(e) => setCat(e.target.value)}
+            >
+              <option value="all">Todas las categorías</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
 
-          <div className="ml-auto text-xs text-zinc-400">
-            Mostrando <span className="text-zinc-200 font-semibold">{filtered.length}</span> productos
+            {/* Sort */}
+            <select
+              className="rounded-2xl border border-violet-500/15 bg-zinc-900/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-violet-500/30"
+              value={sort}
+              onChange={(e) => setSort(e.target.value)}
+            >
+              {SORT_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+
+            {/* Toggle filters */}
+            <button
+              onClick={() => setShowFilters((v) => !v)}
+              className={`rounded-2xl border px-4 py-3 text-sm transition ${
+                showFilters
+                  ? "bg-violet-600 text-white border-violet-500 shadow-lg shadow-violet-500/20"
+                  : "border-violet-500/15 text-violet-200 hover:bg-violet-500/10"
+              }`}
+            >
+              ⚙️ Filtros
+            </button>
+
+            {/* View mode */}
+            <div className="hidden sm:flex rounded-2xl border border-violet-500/15 overflow-hidden">
+              <button
+                onClick={() => setViewMode("grid")}
+                className={`px-3 py-3 text-sm transition ${
+                  viewMode === "grid" ? "bg-violet-600 text-white" : "text-zinc-300 hover:bg-white/5"
+                }`}
+                title="Vista grilla"
+              >
+                ▦
+              </button>
+              <button
+                onClick={() => setViewMode("list")}
+                className={`px-3 py-3 text-sm transition ${
+                  viewMode === "list" ? "bg-violet-600 text-white" : "text-zinc-300 hover:bg-white/5"
+                }`}
+                title="Vista lista"
+              >
+                ☰
+              </button>
+            </div>
+          </div>
+
+          {/* Price filters (collapsible) */}
+          {showFilters && (
+            <div className="flex flex-wrap gap-3 items-center animate-slide-up">
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-zinc-400">Precio:</span>
+                <input
+                  type="number"
+                  className="w-28 rounded-2xl border border-white/10 bg-zinc-900/40 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-white/20"
+                  placeholder="Min"
+                  value={priceMin}
+                  onChange={(e) => setPriceMin(e.target.value)}
+                />
+                <span className="text-zinc-500">—</span>
+                <input
+                  type="number"
+                  className="w-28 rounded-2xl border border-white/10 bg-zinc-900/40 px-3 py-2.5 text-sm outline-none focus:ring-2 focus:ring-white/20"
+                  placeholder="Max"
+                  value={priceMax}
+                  onChange={(e) => setPriceMax(e.target.value)}
+                />
+              </div>
+
+              {activeFilters.length > 0 && (
+                <button
+                  onClick={clearAll}
+                  className="text-xs text-rose-300 hover:text-rose-200 underline transition"
+                >
+                  Limpiar filtros
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Active filter chips */}
+          {activeFilters.length > 0 && (
+            <div className="flex flex-wrap gap-2 animate-fade-in">
+              {activeFilters.map((f) => (
+                <button
+                  key={f.key}
+                  onClick={f.clear}
+                  className="inline-flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full bg-white/10 border border-white/10 text-zinc-200 hover:bg-white/15 transition group"
+                >
+                  {f.label}
+                  <span className="text-zinc-400 group-hover:text-rose-300 transition">✕</span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Results count */}
+          <div className="text-xs text-zinc-400">
+            Mostrando <span className="text-zinc-200 font-semibold">{filtered.length}</span>{" "}
+            de <span className="text-zinc-200 font-semibold">{products.length}</span> productos
           </div>
         </div>
+      </section>
 
+      {/* Products */}
+      <section className="mx-auto max-w-6xl w-full px-4 pb-10 flex-1">
         {loading ? (
           <Loading label="Cargando catálogo..." />
+        ) : filtered.length === 0 ? (
+          <div className="mt-6 rounded-3xl border border-white/10 bg-zinc-900/30 p-8 text-center">
+            <div className="text-3xl mb-3">🔍</div>
+            <div className="font-semibold">No encontramos productos</div>
+            <div className="text-sm text-zinc-400 mt-1">Prueba con otros filtros o busca algo diferente.</div>
+            {activeFilters.length > 0 && (
+              <button
+                onClick={clearAll}
+                className="mt-4 rounded-2xl border border-white/10 px-5 py-2.5 text-sm text-zinc-200 hover:bg-white/5 transition"
+              >
+                Limpiar filtros
+              </button>
+            )}
+          </div>
+        ) : viewMode === "list" ? (
+          /* LIST VIEW */
+          <div className="space-y-3">
+            {filtered.map((p) => {
+              const vars = getVariants(p.id);
+              const stock = getTotalStock(p.id);
+
+              return (
+                <div
+                  key={p.id}
+                  className="rounded-2xl border border-white/10 bg-zinc-900/30 p-4 flex gap-4 items-start hover:bg-zinc-900/50 transition"
+                >
+                  {/* Image */}
+                  <button
+                    onClick={() => setQuick(p)}
+                    className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl overflow-hidden bg-zinc-800 shrink-0"
+                  >
+                    {p.image_path ? (
+                      <img
+                        src={imageUrl(p.image_path)}
+                        alt={p.name}
+                        className="h-full w-full object-cover"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="h-full grid place-items-center text-zinc-500 text-xs">Sin img</div>
+                    )}
+                  </button>
+
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="font-semibold truncate">{p.name}</div>
+                        <div className="text-xs text-zinc-400 line-clamp-1 mt-0.5">{p.description}</div>
+                      </div>
+                      <div className="font-extrabold whitespace-nowrap">${moneyCLP(p.price)}</div>
+                    </div>
+
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <span className="text-[11px] px-2.5 py-1 rounded-full border border-white/10 text-zinc-300">
+                        {vars.length} variante(s)
+                      </span>
+                      <span
+                        className={`text-[11px] px-2.5 py-1 rounded-full border ${
+                          stock > 0
+                            ? "border-emerald-400/20 text-emerald-300 bg-emerald-400/10"
+                            : "border-rose-400/20 text-rose-300 bg-rose-400/10"
+                        }`}
+                      >
+                        Stock: {stock}
+                      </span>
+                    </div>
+
+                    <div className="mt-3 flex gap-2">
+                      <button
+                        onClick={() => openVariantPicker(p)}
+                        className="rounded-xl bg-white text-zinc-950 font-semibold px-4 py-1.5 text-sm hover:opacity-90"
+                      >
+                        Agregar
+                      </button>
+                      <button
+                        onClick={() => setQuick(p)}
+                        className="rounded-xl border border-white/10 px-3 py-1.5 text-sm text-zinc-200 hover:bg-white/5"
+                      >
+                        👁 Ver
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         ) : (
-          <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          /* GRID VIEW */
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {filtered.map((p) => {
               const vars = getVariants(p.id);
               const stock = getTotalStock(p.id);
@@ -250,6 +502,8 @@ export default function Catalog() {
         )}
       </section>
 
+      <Footer />
+
       <ProductModal
         open={!!quick}
         product={quick}
@@ -264,8 +518,9 @@ export default function Catalog() {
 
       {/* Modal selector de variante */}
       {pickerProduct ? (
-        <div className="fixed inset-0 z-[100] bg-black/70 backdrop-blur-sm grid place-items-center p-4">
-          <div className="w-full max-w-lg rounded-3xl border border-white/10 bg-zinc-950 text-zinc-100 p-5">
+        <div className="fixed inset-0 z-[100] grid place-items-center p-4">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm animate-fade-in" onClick={() => { setPickerProduct(null); setSelectedVariantId(""); }} />
+          <div className="relative w-full max-w-lg rounded-3xl border border-white/10 bg-zinc-950 text-zinc-100 p-5 animate-slide-up max-h-[90vh] overflow-y-auto">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <div className="text-xs text-zinc-400">Selecciona variante</div>
@@ -278,7 +533,7 @@ export default function Catalog() {
                 }}
                 className="rounded-2xl border border-white/10 px-3 py-2 text-sm text-zinc-300 hover:bg-white/5"
               >
-                Cerrar
+                ✕
               </button>
             </div>
 
