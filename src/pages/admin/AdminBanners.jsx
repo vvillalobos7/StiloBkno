@@ -1,5 +1,6 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase, BUSINESS_ID } from "../../lib/supabase";
+import AdminLayout from "../../components/AdminLayout";
 import Loading from "../../components/Loading";
 import { useToast } from "../../components/Toast";
 
@@ -157,160 +158,116 @@ export default function AdminBanners() {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-zinc-100">
-      <header className="border-b border-white/10 glass sticky top-0 z-40">
-        <div className="mx-auto max-w-6xl px-4 py-4 flex items-center gap-3">
-          <div className="h-10 w-10 rounded-2xl bg-white text-zinc-950 grid place-items-center font-black">
-            SB
-          </div>
+    <AdminLayout title="Banners" subtitle="Gestiona el slider del Home">
+      <div className="rounded-2xl sm:rounded-3xl border border-violet-500/15 bg-zinc-900/40 p-3 sm:p-5 md:p-6">
+        <div className="flex items-start justify-between gap-3 flex-wrap">
           <div>
-            <div className="font-extrabold tracking-tight">Admin • Banners</div>
-            <div className="text-xs text-zinc-400">Gestiona el slider del Home</div>
+            <h2 className="text-lg sm:text-xl font-extrabold tracking-tight">Banners</h2>
+            <p className="text-sm text-zinc-400 mt-1">
+              Los banners activos se muestran como slider en el Home.
+            </p>
           </div>
-
-          <div className="ml-auto flex items-center gap-2 flex-wrap">
-            <a
-              href="/admin/dashboard"
-              className="rounded-2xl border border-white/10 px-4 py-2 text-sm text-zinc-200 hover:bg-white/5"
-            >
-              Dashboard
-            </a>
-            <a
-              href="/admin/products"
-              className="rounded-2xl border border-white/10 px-4 py-2 text-sm text-zinc-200 hover:bg-white/5"
-            >
-              Productos
-            </a>
-            <a
-              href="/admin/orders"
-              className="rounded-2xl border border-white/10 px-4 py-2 text-sm text-zinc-200 hover:bg-white/5"
-            >
-              Pedidos
-            </a>
-            <button
-              onClick={async () => {
-                await supabase.auth.signOut();
-                location.href = "/admin/login";
-              }}
-              className="rounded-2xl border border-white/10 px-4 py-2 text-sm text-zinc-200 hover:bg-white/5"
-            >
-              Cerrar sesión
-            </button>
-          </div>
+          <button
+            onClick={openNew}
+            className="rounded-2xl btn-accent text-sm px-4 sm:px-5 py-2 sm:py-2.5 hover:opacity-90 transition"
+          >
+            + Nuevo banner
+          </button>
         </div>
-      </header>
 
-      <main className="mx-auto max-w-6xl px-4 py-8">
-        <div className="rounded-3xl border border-white/10 bg-zinc-900/30 p-5 sm:p-6">
-          <div className="flex items-start justify-between gap-3 flex-wrap">
-            <div>
-              <h1 className="text-2xl font-extrabold tracking-tight">Banners</h1>
-              <p className="text-sm text-zinc-400 mt-1">
-                Los banners activos se muestran como slider en el Home.
-              </p>
-            </div>
-            <button
-              onClick={openNew}
-              className="rounded-2xl bg-white text-zinc-950 font-bold text-sm px-5 py-2.5 hover:opacity-90 transition"
-            >
-              + Nuevo banner
+        {loading ? (
+          <Loading label="Cargando banners..." />
+        ) : banners.length === 0 ? (
+          <div className="mt-6 text-sm text-zinc-300">
+            Aún no hay banners.{" "}
+            <button onClick={openNew} className="underline text-violet-300">
+              Crea el primero
             </button>
           </div>
+        ) : (
+          <div className="mt-5 grid gap-3">
+            {banners.map((b) => (
+              <div
+                key={b.id}
+                className={`rounded-2xl border p-4 transition ${
+                  b.is_active
+                    ? "border-violet-500/15 bg-zinc-950/30"
+                    : "border-violet-500/5 bg-zinc-950/10 opacity-60"
+                }`}
+              >
+                <div className="flex gap-4 items-start flex-col sm:flex-row">
+                  {/* Thumbnail */}
+                  <div className="w-full sm:w-40 aspect-video rounded-xl overflow-hidden bg-zinc-800 shrink-0">
+                    {b.image_path ? (
+                      <img
+                        src={imageUrl(b.image_path)}
+                        alt={b.title ?? "Banner"}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="h-full grid place-items-center text-zinc-500 text-xs">
+                        Sin imagen
+                      </div>
+                    )}
+                  </div>
 
-          {loading ? (
-            <Loading label="Cargando banners..." />
-          ) : banners.length === 0 ? (
-            <div className="mt-6 text-sm text-zinc-300">
-              Aún no hay banners.{" "}
-              <button onClick={openNew} className="underline text-zinc-200">
-                Crea el primero
-              </button>
-            </div>
-          ) : (
-            <div className="mt-5 grid gap-3">
-              {banners.map((b) => (
-                <div
-                  key={b.id}
-                  className={`rounded-2xl border p-4 transition ${
-                    b.is_active
-                      ? "border-white/10 bg-zinc-950/30"
-                      : "border-white/5 bg-zinc-950/10 opacity-60"
-                  }`}
-                >
-                  <div className="flex gap-4 items-start flex-col sm:flex-row">
-                    {/* Thumbnail */}
-                    <div className="w-full sm:w-40 aspect-video rounded-xl overflow-hidden bg-zinc-800 shrink-0">
-                      {b.image_path ? (
-                        <img
-                          src={imageUrl(b.image_path)}
-                          alt={b.title ?? "Banner"}
-                          className="h-full w-full object-cover"
-                        />
-                      ) : (
-                        <div className="h-full grid place-items-center text-zinc-500 text-xs">
-                          Sin imagen
-                        </div>
-                      )}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span
+                        className={`text-xs px-2.5 py-1 rounded-full border font-medium ${
+                          b.is_active
+                            ? "border-emerald-400/20 bg-emerald-400/15 text-emerald-200"
+                            : "border-violet-500/15 bg-violet-500/5 text-zinc-400"
+                        }`}
+                      >
+                        {b.is_active ? "Activo" : "Inactivo"}
+                      </span>
+                      <span className="text-xs text-zinc-500">
+                        Orden: {b.sort_order}
+                      </span>
                     </div>
 
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span
-                          className={`text-xs px-2.5 py-1 rounded-full border font-medium ${
-                            b.is_active
-                              ? "border-emerald-400/20 bg-emerald-400/15 text-emerald-200"
-                              : "border-white/10 bg-white/5 text-zinc-400"
-                          }`}
-                        >
-                          {b.is_active ? "Activo" : "Inactivo"}
-                        </span>
-                        <span className="text-xs text-zinc-500">
-                          Orden: {b.sort_order}
-                        </span>
+                    <div className="mt-2 font-semibold truncate">
+                      {b.title || "(Sin título)"}
+                    </div>
+                    {b.subtitle && (
+                      <div className="text-sm text-zinc-400 truncate mt-0.5">
+                        {b.subtitle}
                       </div>
+                    )}
+                    {b.link && (
+                      <div className="text-xs text-zinc-500 mt-1 truncate">
+                        🔗 {b.link}
+                      </div>
+                    )}
 
-                      <div className="mt-2 font-semibold truncate">
-                        {b.title || "(Sin título)"}
-                      </div>
-                      {b.subtitle && (
-                        <div className="text-sm text-zinc-400 truncate mt-0.5">
-                          {b.subtitle}
-                        </div>
-                      )}
-                      {b.link && (
-                        <div className="text-xs text-zinc-500 mt-1 truncate">
-                          🔗 {b.link}
-                        </div>
-                      )}
-
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        <button
-                          onClick={() => openEdit(b)}
-                          className="rounded-xl border border-white/10 px-3 py-1.5 text-xs text-zinc-200 hover:bg-white/5 transition"
-                        >
-                          Editar
-                        </button>
-                        <button
-                          onClick={() => toggleActive(b)}
-                          className="rounded-xl border border-white/10 px-3 py-1.5 text-xs text-zinc-200 hover:bg-white/5 transition"
-                        >
-                          {b.is_active ? "Desactivar" : "Activar"}
-                        </button>
-                        <button
-                          onClick={() => deleteBanner(b)}
-                          className="rounded-xl border border-rose-400/20 px-3 py-1.5 text-xs text-rose-300 hover:bg-rose-400/10 transition"
-                        >
-                          Eliminar
-                        </button>
-                      </div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <button
+                        onClick={() => openEdit(b)}
+                        className="rounded-xl border border-violet-500/15 px-3 py-1.5 text-xs text-zinc-200 hover:bg-violet-500/10 transition"
+                      >
+                        Editar
+                      </button>
+                      <button
+                        onClick={() => toggleActive(b)}
+                        className="rounded-xl border border-violet-500/15 px-3 py-1.5 text-xs text-zinc-200 hover:bg-violet-500/10 transition"
+                      >
+                        {b.is_active ? "Desactivar" : "Activar"}
+                      </button>
+                      <button
+                        onClick={() => deleteBanner(b)}
+                        className="rounded-xl border border-rose-400/20 px-3 py-1.5 text-xs text-rose-300 hover:bg-rose-400/10 transition"
+                      >
+                        Eliminar
+                      </button>
                     </div>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </main>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Banner form modal */}
       {showForm && (
@@ -320,14 +277,14 @@ export default function AdminBanners() {
             onClick={() => setShowForm(false)}
           />
 
-          <div className="relative w-full max-w-lg rounded-3xl border border-white/10 bg-zinc-950 p-5 sm:p-6 animate-slide-up max-h-[90vh] overflow-y-auto">
+          <div className="relative w-full max-w-lg rounded-2xl sm:rounded-3xl border border-violet-500/15 bg-zinc-950 p-4 sm:p-5 md:p-6 animate-slide-up max-h-[90vh] overflow-y-auto shadow-xl shadow-violet-500/5">
             <div className="flex items-center justify-between gap-3">
               <h3 className="text-xl font-extrabold">
                 {form.id ? "Editar banner" : "Nuevo banner"}
               </h3>
               <button
                 onClick={() => setShowForm(false)}
-                className="h-9 w-9 rounded-xl border border-white/10 grid place-items-center text-zinc-300 hover:bg-white/5"
+                className="h-9 w-9 rounded-xl border border-violet-500/15 grid place-items-center text-zinc-300 hover:bg-violet-500/10 transition"
               >
                 ✕
               </button>
@@ -356,7 +313,7 @@ export default function AdminBanners() {
               <label className="grid gap-1.5">
                 <span className="text-xs text-zinc-400">Título</span>
                 <input
-                  className="rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-white/20"
+                  className="rounded-2xl border border-violet-500/15 bg-zinc-950/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-violet-500/30 transition"
                   value={form.title}
                   onChange={(e) => updateField("title", e.target.value)}
                   placeholder="Ej: Nuevo Drop de Verano 🔥"
@@ -366,7 +323,7 @@ export default function AdminBanners() {
               <label className="grid gap-1.5">
                 <span className="text-xs text-zinc-400">Subtítulo</span>
                 <input
-                  className="rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-white/20"
+                  className="rounded-2xl border border-violet-500/15 bg-zinc-950/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-violet-500/30 transition"
                   value={form.subtitle}
                   onChange={(e) => updateField("subtitle", e.target.value)}
                   placeholder="Ej: Descubre lo más nuevo en poleras y zapatillas"
@@ -376,7 +333,7 @@ export default function AdminBanners() {
               <label className="grid gap-1.5">
                 <span className="text-xs text-zinc-400">Link (destino al hacer click)</span>
                 <input
-                  className="rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-white/20"
+                  className="rounded-2xl border border-violet-500/15 bg-zinc-950/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-violet-500/30 transition"
                   value={form.link}
                   onChange={(e) => updateField("link", e.target.value)}
                   placeholder="Ej: /catalog o /catalog?cat=abc123"
@@ -388,7 +345,7 @@ export default function AdminBanners() {
                   <span className="text-xs text-zinc-400">Orden</span>
                   <input
                     type="number"
-                    className="rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-white/20"
+                    className="rounded-2xl border border-violet-500/15 bg-zinc-950/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-violet-500/30 transition"
                     value={form.sort_order}
                     onChange={(e) => updateField("sort_order", e.target.value)}
                   />
@@ -408,13 +365,13 @@ export default function AdminBanners() {
                 <button
                   onClick={saveBanner}
                   disabled={saving}
-                  className="flex-1 rounded-2xl bg-white text-zinc-950 font-extrabold py-3 hover:opacity-90 disabled:opacity-60 transition"
+                  className="flex-1 rounded-2xl btn-accent py-3 hover:opacity-90 disabled:opacity-60 transition"
                 >
                   {saving ? "Guardando..." : form.id ? "Actualizar" : "Crear banner"}
                 </button>
                 <button
                   onClick={() => setShowForm(false)}
-                  className="rounded-2xl border border-white/10 px-5 py-3 text-sm text-zinc-200 hover:bg-white/5 transition"
+                  className="rounded-2xl border border-violet-500/15 px-5 py-3 text-sm text-zinc-200 hover:bg-violet-500/10 transition"
                 >
                   Cancelar
                 </button>
@@ -423,6 +380,6 @@ export default function AdminBanners() {
           </div>
         </div>
       )}
-    </div>
+    </AdminLayout>
   );
 }

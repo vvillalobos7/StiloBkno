@@ -1,5 +1,6 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase, BUSINESS_ID, STORAGE_BUCKET } from "../../lib/supabase";
+import AdminLayout from "../../components/AdminLayout";
 import Loading from "../../components/Loading";
 import { moneyCLP, slug } from "../../utils/format";
 
@@ -336,388 +337,351 @@ export default function AdminProducts() {
     (variantsByProduct[productId] ?? []).reduce((acc, v) => acc + Number(v.stock ?? 0), 0);
 
   return (
-    <div className="min-h-screen bg-zinc-950">
-      <header className="border-b border-white/10 bg-zinc-950/75 backdrop-blur sticky top-0 z-40">
-        <div className="mx-auto max-w-6xl px-4 py-4 flex items-center gap-3">
-          <div className="h-10 w-10 rounded-2xl bg-white text-zinc-950 grid place-items-center font-black">
-            SB
+    <AdminLayout title="Productos" subtitle="Crear, editar y activar catálogo">
+      {/* Product form */}
+      <section className="rounded-2xl sm:rounded-3xl border border-violet-500/15 bg-zinc-900/40 p-3 sm:p-5">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-lg sm:text-xl font-extrabold tracking-tight">
+            {form.id ? "Editar producto" : "Nuevo producto"}
+          </h2>
+          <button
+            onClick={reset}
+            className="rounded-2xl border border-violet-500/15 px-4 py-2 text-sm text-zinc-200 hover:bg-violet-500/10 transition"
+          >
+            Limpiar
+          </button>
+        </div>
+
+        <div className="mt-3 sm:mt-4 grid sm:grid-cols-2 gap-2 sm:gap-3">
+          <label className="grid gap-2">
+            <span className="text-xs text-zinc-400">Nombre</span>
+            <input
+              className="rounded-2xl border border-violet-500/15 bg-zinc-950/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-violet-500/30 transition"
+              placeholder="Ej: Polerón Nike Tech Fleece"
+              value={form.name}
+              onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))}
+            />
+          </label>
+
+          <label className="grid gap-2">
+            <span className="text-xs text-zinc-400">Precio base (CLP)</span>
+
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 text-sm">$</span>
+              <input
+                inputMode="numeric"
+                className="w-full rounded-2xl border border-violet-500/15 bg-zinc-950/40 pl-9 pr-4 py-3 text-sm outline-none focus:ring-2 focus:ring-violet-500/30 transition"
+                placeholder="Ej: 49.990"
+                value={formatCLP(form.price)}
+                onChange={(e) =>
+                  setForm((s) => ({
+                    ...s,
+                    price: parseCLP(e.target.value),
+                  }))
+                }
+              />
+            </div>
+
+            {Number(form.price) > 0 ? (
+              <div className="text-[11px] text-emerald-400">
+                Guardará: ${Number(form.price).toLocaleString("es-CL")}
+              </div>
+            ) : (
+              <div className="text-[11px] text-zinc-500">Ingresa el precio en pesos chilenos.</div>
+            )}
+          </label>
+
+          <label className="grid gap-2">
+            <span className="text-xs text-zinc-400">Categoría</span>
+            <select
+              className="rounded-2xl border border-violet-500/15 bg-zinc-950/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-violet-500/30 transition"
+              value={form.category_id || ""}
+              onChange={(e) => setForm((s) => ({ ...s, category_id: e.target.value }))}
+            >
+              <option value="">Sin categoría</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="rounded-2xl border border-violet-500/15 bg-zinc-950/40 px-4 py-3 text-sm text-zinc-200 flex items-center justify-between gap-3">
+            <span>Activo en catálogo</span>
+            <input
+              type="checkbox"
+              checked={!!form.is_active}
+              onChange={(e) => setForm((s) => ({ ...s, is_active: e.target.checked }))}
+            />
+          </label>
+
+          <div className="sm:col-span-2 rounded-2xl sm:rounded-3xl border border-violet-500/15 bg-zinc-950/20 p-3 sm:p-4">
+            <div className="text-sm font-bold">Crear nueva categoría</div>
+            <div className="mt-2 sm:mt-3 flex flex-col gap-2 sm:gap-3">
+              <input
+                className="flex-1 rounded-2xl border border-violet-500/15 bg-zinc-950/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-violet-500/30 transition"
+                placeholder="Ej: Zapatillas"
+                value={newCategory}
+                onChange={(e) => setNewCategory(e.target.value)}
+              />
+              <button
+                disabled={savingCategory}
+                onClick={createCategory}
+                className="rounded-2xl btn-accent px-5 py-3 hover:opacity-90 disabled:opacity-60"
+              >
+                {savingCategory ? "Creando..." : "Crear categoría"}
+              </button>
+            </div>
           </div>
-          <div>
-            <div className="font-extrabold tracking-tight">Admin • Productos</div>
-            <div className="text-xs text-zinc-400">StiloBkno • Panel premium</div>
+
+          <textarea
+            className="sm:col-span-2 rounded-2xl border border-violet-500/15 bg-zinc-950/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-violet-500/30 transition"
+            rows={4}
+            placeholder="Descripción (talla, material, fit, color, etc.)"
+            value={form.description}
+            onChange={(e) => setForm((s) => ({ ...s, description: e.target.value }))}
+          />
+
+          <div className="sm:col-span-2 flex flex-col sm:flex-row gap-3 sm:items-center">
+            <input
+              type="file"
+              accept="image/*"
+              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              className="text-sm text-zinc-300"
+            />
+
+            <div className="ml-auto flex items-center gap-2">
+              {form.image_path ? (
+                <a
+                  className="text-xs text-violet-300 underline"
+                  href={imageUrl(form.image_path)}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Ver imagen actual
+                </a>
+              ) : (
+                <span className="text-xs text-zinc-500">Sin imagen</span>
+              )}
+
+              <button
+                disabled={saving}
+                onClick={save}
+                className="rounded-2xl btn-accent px-5 py-3 hover:opacity-90 disabled:opacity-60"
+              >
+                {saving ? "Guardando..." : "Guardar"}
+              </button>
+            </div>
           </div>
 
-          <div className="ml-auto flex items-center gap-2">
-            <a
-              href="/admin/dashboard"
-              className="rounded-2xl border border-white/10 px-4 py-2 text-sm text-zinc-200 hover:bg-white/5"
-            >
-              Dashboard
-            </a>
-
-            <a
-              href="/admin/orders"
-              className="rounded-2xl border border-white/10 px-4 py-2 text-sm text-zinc-200 hover:bg-white/5"
-            >
-              Pedidos
-            </a>
-
-            <button
-              onClick={async () => {
-                await supabase.auth.signOut();
-                location.href = "/admin/login";
-              }}
-              className="rounded-2xl border border-white/10 px-4 py-2 text-sm text-zinc-200 hover:bg-white/5"
-            >
-              Cerrar sesión
-            </button>
+          <div className="sm:col-span-2 text-xs text-zinc-500">
+            Tip: sube imágenes cuadradas (1080x1080) para que se vean premium.
           </div>
         </div>
-      </header>
+      </section>
 
-      <main className="mx-auto max-w-6xl px-4 py-8">
-        <section className="rounded-3xl border border-white/10 bg-zinc-900/30 p-5">
-          <div className="flex items-center justify-between gap-4">
-            <h2 className="text-xl font-extrabold tracking-tight">
-              {form.id ? "Editar producto" : "Nuevo producto"}
-            </h2>
-            <button
-              onClick={reset}
-              className="rounded-2xl border border-white/10 px-4 py-2 text-sm text-zinc-200 hover:bg-white/5"
-            >
-              Limpiar
-            </button>
-          </div>
+      {/* Product list */}
+      <section className="mt-4 sm:mt-6 rounded-2xl sm:rounded-3xl border border-violet-500/15 bg-zinc-900/40 p-3 sm:p-5">
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 sm:items-center">
+          <h3 className="text-base sm:text-lg font-extrabold tracking-tight">Productos</h3>
 
-          <div className="mt-4 grid md:grid-cols-2 gap-3">
-            <label className="grid gap-2">
-              <span className="text-xs text-zinc-400">Nombre</span>
-              <input
-                className="rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-white/20"
-                placeholder="Ej: Polerón Nike Tech Fleece"
-                value={form.name}
-                onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))}
-              />
-            </label>
+          <input
+            className="sm:ml-auto rounded-2xl border border-violet-500/15 bg-zinc-950/40 px-4 py-2.5 sm:py-3 text-sm outline-none focus:ring-2 focus:ring-violet-500/30 transition"
+            placeholder="Buscar..."
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+          />
 
-            <label className="grid gap-2">
-              <span className="text-xs text-zinc-400">Precio base (CLP)</span>
+          <label className="rounded-2xl border border-violet-500/15 bg-zinc-950/40 px-4 py-3 text-sm text-zinc-200 flex items-center gap-2">
+            <input type="checkbox" checked={onlyActive} onChange={(e) => setOnlyActive(e.target.checked)} />
+            Solo activos
+          </label>
+        </div>
 
-              <div className="relative">
-                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-400 text-sm">$</span>
-                <input
-                  inputMode="numeric"
-                  className="w-full rounded-2xl border border-white/10 bg-zinc-950/40 pl-9 pr-4 py-3 text-sm outline-none focus:ring-2 focus:ring-white/20"
-                  placeholder="Ej: 49.990"
-                  value={formatCLP(form.price)}
-                  onChange={(e) =>
-                    setForm((s) => ({
-                      ...s,
-                      price: parseCLP(e.target.value),
-                    }))
-                  }
-                />
-              </div>
+        {loading ? (
+          <Loading label="Cargando productos..." />
+        ) : (
+          <div className="mt-5 grid grid-cols-1 gap-3">
+            {filtered.map((p) => {
+              const variants = variantsByProduct[p.id] ?? [];
+              const vf = variantForms[p.id] ?? { ...emptyVariant };
 
-              {Number(form.price) > 0 ? (
-                <div className="text-[11px] text-emerald-400">
-                  Guardará: ${Number(form.price).toLocaleString("es-CL")}
-                </div>
-              ) : (
-                <div className="text-[11px] text-zinc-500">Ingresa el precio en pesos chilenos.</div>
-              )}
-            </label>
+              return (
+                <div key={p.id} className="rounded-2xl sm:rounded-3xl border border-violet-500/15 bg-zinc-950/30 p-3 sm:p-4">
+                  <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+                    <div className="w-full sm:w-24 sm:h-24 aspect-[4/3] sm:aspect-square rounded-xl sm:rounded-2xl overflow-hidden bg-white/5 shrink-0">
+                      {p.image_path ? (
+                        <img className="h-full w-full object-cover" src={imageUrl(p.image_path)} alt={p.name} />
+                      ) : null}
+                    </div>
 
-            <label className="grid gap-2">
-              <span className="text-xs text-zinc-400">Categoría</span>
-              <select
-                className="rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-white/20"
-                value={form.category_id || ""}
-                onChange={(e) => setForm((s) => ({ ...s, category_id: e.target.value }))}
-              >
-                <option value="">Sin categoría</option>
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <label className="rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm text-zinc-200 flex items-center justify-between gap-3">
-              <span>Activo en catálogo</span>
-              <input
-                type="checkbox"
-                checked={!!form.is_active}
-                onChange={(e) => setForm((s) => ({ ...s, is_active: e.target.checked }))}
-              />
-            </label>
-
-            <div className="md:col-span-2 rounded-3xl border border-white/10 bg-zinc-950/20 p-4">
-              <div className="text-sm font-bold">Crear nueva categoría</div>
-              <div className="mt-3 flex flex-col md:flex-row gap-3">
-                <input
-                  className="flex-1 rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-white/20"
-                  placeholder="Ej: Zapatillas"
-                  value={newCategory}
-                  onChange={(e) => setNewCategory(e.target.value)}
-                />
-                <button
-                  disabled={savingCategory}
-                  onClick={createCategory}
-                  className="rounded-2xl bg-white text-zinc-950 font-extrabold px-5 py-3 hover:opacity-90 disabled:opacity-60"
-                >
-                  {savingCategory ? "Creando..." : "Crear categoría"}
-                </button>
-              </div>
-            </div>
-
-            <textarea
-              className="md:col-span-2 rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-white/20"
-              rows={4}
-              placeholder="Descripción (talla, material, fit, color, etc.)"
-              value={form.description}
-              onChange={(e) => setForm((s) => ({ ...s, description: e.target.value }))}
-            />
-
-            <div className="md:col-span-2 flex flex-col md:flex-row gap-3 md:items-center">
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-                className="text-sm text-zinc-300"
-              />
-
-              <div className="ml-auto flex items-center gap-2">
-                {form.image_path ? (
-                  <a
-                    className="text-xs text-zinc-300 underline"
-                    href={imageUrl(form.image_path)}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    Ver imagen actual
-                  </a>
-                ) : (
-                  <span className="text-xs text-zinc-500">Sin imagen</span>
-                )}
-
-                <button
-                  disabled={saving}
-                  onClick={save}
-                  className="rounded-2xl bg-white text-zinc-950 font-extrabold px-5 py-3 hover:opacity-90 disabled:opacity-60"
-                >
-                  {saving ? "Guardando..." : "Guardar"}
-                </button>
-              </div>
-            </div>
-
-            <div className="md:col-span-2 text-xs text-zinc-500">
-              Tip: sube imágenes cuadradas (1080x1080) para que se vean premium.
-            </div>
-          </div>
-        </section>
-
-        <section className="mt-6 rounded-3xl border border-white/10 bg-zinc-900/30 p-5">
-          <div className="flex flex-col md:flex-row gap-3 md:items-center">
-            <h3 className="text-lg font-extrabold tracking-tight">Productos</h3>
-
-            <input
-              className="md:ml-auto rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-white/20"
-              placeholder="Buscar..."
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-            />
-
-            <label className="rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm text-zinc-200 flex items-center gap-2">
-              <input type="checkbox" checked={onlyActive} onChange={(e) => setOnlyActive(e.target.checked)} />
-              Solo activos
-            </label>
-          </div>
-
-          {loading ? (
-            <Loading label="Cargando productos..." />
-          ) : (
-            <div className="mt-5 grid grid-cols-1 gap-3">
-              {filtered.map((p) => {
-                const variants = variantsByProduct[p.id] ?? [];
-                const vf = variantForms[p.id] ?? { ...emptyVariant };
-
-                return (
-                  <div key={p.id} className="rounded-3xl border border-white/10 bg-zinc-950/30 p-4">
-                    <div className="flex flex-col lg:flex-row gap-4">
-                      <div className="h-24 w-24 rounded-2xl overflow-hidden bg-white/5 shrink-0">
-                        {p.image_path ? (
-                          <img className="h-full w-full object-cover" src={imageUrl(p.image_path)} alt={p.name} />
-                        ) : null}
-                      </div>
-
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3">
-                          <div>
-                            <div className="font-semibold text-lg truncate">{p.name}</div>
-                            <div className="text-xs text-zinc-400 mt-1">
-                              {p.description || "Sin descripción"}
-                            </div>
-                            <div className="mt-2 flex flex-wrap gap-2 text-xs">
-                              <span className="rounded-full border border-white/10 px-3 py-1 text-zinc-300">
-                                Precio base: ${moneyCLP(p.price)}
-                              </span>
-                              <span className="rounded-full border border-white/10 px-3 py-1 text-zinc-300">
-                                Stock total variantes: {totalStock(p.id)}
-                              </span>
-                              <span
-                                className={`rounded-full px-3 py-1 ${
-                                  p.is_active
-                                    ? "bg-emerald-500 text-zinc-950"
-                                    : "border border-white/10 text-zinc-300"
-                                }`}
-                              >
-                                {p.is_active ? "Activo" : "Inactivo"}
-                              </span>
-                            </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-col gap-2">
+                        <div className="min-w-0">
+                          <div className="font-semibold text-base sm:text-lg truncate">{p.name}</div>
+                          <div className="text-xs text-zinc-400 mt-0.5 sm:mt-1 line-clamp-2">
+                            {p.description || "Sin descripción"}
                           </div>
-
-                          <div className="flex flex-wrap gap-2">
-                            <button
-                              onClick={() => edit(p)}
-                              className="rounded-2xl border border-white/10 px-3 py-2 text-sm text-zinc-200 hover:bg-white/5"
-                            >
-                              Editar
-                            </button>
-
-                            <button
-                              onClick={() => toggleActive(p)}
-                              className={`rounded-2xl px-3 py-2 text-sm font-semibold ${
+                          <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                            <span className="rounded-full border border-violet-500/15 px-3 py-1 text-zinc-300">
+                              Precio base: ${moneyCLP(p.price)}
+                            </span>
+                            <span className="rounded-full border border-violet-500/15 px-3 py-1 text-zinc-300">
+                              Stock total variantes: {totalStock(p.id)}
+                            </span>
+                            <span
+                              className={`rounded-full px-3 py-1 ${
                                 p.is_active
                                   ? "bg-emerald-500 text-zinc-950"
-                                  : "bg-white/10 text-zinc-200 border border-white/10"
+                                  : "border border-violet-500/15 text-zinc-300"
                               }`}
                             >
                               {p.is_active ? "Activo" : "Inactivo"}
-                            </button>
-
-                            <button
-                              onClick={() => remove(p)}
-                              className="rounded-2xl border border-white/10 px-3 py-2 text-sm text-zinc-200 hover:bg-white/5"
-                            >
-                              Eliminar
-                            </button>
+                            </span>
                           </div>
                         </div>
 
-                        <div className="mt-4 rounded-3xl border border-white/10 bg-zinc-900/30 p-4">
-                          <div className="text-sm font-bold">Variantes</div>
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            onClick={() => edit(p)}
+                            className="rounded-2xl border border-violet-500/15 px-3 py-2 text-sm text-zinc-200 hover:bg-violet-500/10 transition"
+                          >
+                            Editar
+                          </button>
 
-                          {variants.length === 0 ? (
-                            <div className="mt-3 text-sm text-zinc-400">Aún no hay variantes para este producto.</div>
-                          ) : (
-                            <div className="mt-3 space-y-2">
-                              {variants.map((v) => (
-                                <div
-                                  key={v.id}
-                                  className="rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 flex flex-col md:flex-row md:items-center gap-3"
-                                >
-                                  <div className="min-w-0 flex-1">
-                                    <div className="text-sm font-semibold text-zinc-200">
-                                      {v.size ? `Talla: ${v.size}` : "Sin talla"}
-                                      {" • "}
-                                      {v.color ? `Color: ${v.color}` : "Sin color"}
-                                    </div>
-                                    <div className="text-xs text-zinc-400 mt-1">
-                                      Stock: {v.stock}
-                                      {" • "}
-                                      Precio variante:{" "}
-                                      {v.price_override ? `$${moneyCLP(v.price_override)}` : "usa precio base"}
-                                    </div>
+                          <button
+                            onClick={() => toggleActive(p)}
+                            className={`rounded-2xl px-3 py-2 text-sm font-semibold ${
+                              p.is_active
+                                ? "bg-emerald-500 text-zinc-950"
+                                : "bg-white/10 text-zinc-200 border border-violet-500/15"
+                            }`}
+                          >
+                            {p.is_active ? "Activo" : "Inactivo"}
+                          </button>
+
+                          <button
+                            onClick={() => remove(p)}
+                            className="rounded-2xl border border-rose-400/20 px-3 py-2 text-sm text-rose-300 hover:bg-rose-400/10 transition"
+                          >
+                            Eliminar
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Variants section */}
+                      <div className="mt-3 sm:mt-4 rounded-2xl sm:rounded-3xl border border-violet-500/15 bg-zinc-900/30 p-3 sm:p-4">
+                        <div className="text-sm font-bold">Variantes</div>
+
+                        {variants.length === 0 ? (
+                          <div className="mt-3 text-sm text-zinc-400">Aún no hay variantes para este producto.</div>
+                        ) : (
+                          <div className="mt-3 space-y-2">
+                            {variants.map((v) => (
+                              <div
+                                key={v.id}
+                                className="rounded-xl sm:rounded-2xl border border-violet-500/15 bg-zinc-950/40 px-3 py-2 sm:px-4 sm:py-3 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3"
+                              >
+                                <div className="min-w-0 flex-1">
+                                  <div className="text-xs sm:text-sm font-semibold text-zinc-200">
+                                    {v.size ? `Talla: ${v.size}` : "Sin talla"}
+                                    {" • "}
+                                    {v.color ? `Color: ${v.color}` : "Sin color"}
                                   </div>
-
-                                  <div className="flex flex-wrap gap-2">
-                                    <button
-                                      onClick={() => toggleVariantActive(v)}
-                                      className={`rounded-2xl px-3 py-2 text-sm font-semibold ${
-                                        v.is_active
-                                          ? "bg-emerald-500 text-zinc-950"
-                                          : "bg-white/10 text-zinc-200 border border-white/10"
-                                      }`}
-                                    >
-                                      {v.is_active ? "Activa" : "Inactiva"}
-                                    </button>
-
-                                    <button
-                                      onClick={() => removeVariant(v)}
-                                      className="rounded-2xl border border-white/10 px-3 py-2 text-sm text-zinc-200 hover:bg-white/5"
-                                    >
-                                      Eliminar
-                                    </button>
+                                  <div className="text-xs text-zinc-400 mt-1">
+                                    Stock: {v.stock}
+                                    {" • "}
+                                    Precio variante:{" "}
+                                    {v.price_override ? `$${moneyCLP(v.price_override)}` : "usa precio base"}
                                   </div>
                                 </div>
-                              ))}
-                            </div>
-                          )}
 
-                          <div className="mt-4 grid md:grid-cols-5 gap-3">
-                            <input
-                              className="rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-white/20"
-                              placeholder="Talla (S, M, L, 42...)"
-                              value={vf.size}
-                              onChange={(e) => setVariantField(p.id, "size", e.target.value)}
-                            />
+                                <div className="flex flex-wrap gap-2">
+                                  <button
+                                    onClick={() => toggleVariantActive(v)}
+                                    className={`rounded-2xl px-3 py-2 text-sm font-semibold ${
+                                      v.is_active
+                                        ? "bg-emerald-500 text-zinc-950"
+                                        : "bg-white/10 text-zinc-200 border border-violet-500/15"
+                                    }`}
+                                  >
+                                    {v.is_active ? "Activa" : "Inactiva"}
+                                  </button>
 
-                            <input
-                              className="rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-white/20"
-                              placeholder="Color"
-                              value={vf.color}
-                              onChange={(e) => setVariantField(p.id, "color", e.target.value)}
-                            />
-
-                            <input
-                              inputMode="numeric"
-                              className="rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-white/20"
-                              placeholder="Stock"
-                              value={vf.stock}
-                              onChange={(e) => setVariantField(p.id, "stock", parseCLP(e.target.value))}
-                            />
-
-                            <input
-                              inputMode="numeric"
-                              className="rounded-2xl border border-white/10 bg-zinc-950/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-white/20"
-                              placeholder="Precio variante (opcional)"
-                              value={vf.price_override ? formatCLP(vf.price_override) : ""}
-                              onChange={(e) => setVariantField(p.id, "price_override", parseCLP(e.target.value))}
-                            />
-
-                            <button
-                              disabled={savingVariantFor === p.id}
-                              onClick={() => saveVariant(p)}
-                              className="rounded-2xl bg-white text-zinc-950 font-extrabold px-5 py-3 hover:opacity-90 disabled:opacity-60"
-                            >
-                              {savingVariantFor === p.id ? "Guardando..." : "Agregar variante"}
-                            </button>
+                                  <button
+                                    onClick={() => removeVariant(v)}
+                                    className="rounded-2xl border border-rose-400/20 px-3 py-2 text-sm text-rose-300 hover:bg-rose-400/10 transition"
+                                  >
+                                    Eliminar
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
                           </div>
+                        )}
 
-                          <label className="mt-3 inline-flex items-center gap-2 text-sm text-zinc-300">
-                            <input
-                              type="checkbox"
-                              checked={!!vf.is_active}
-                              onChange={(e) => setVariantField(p.id, "is_active", e.target.checked)}
-                            />
-                            Variante activa
-                          </label>
+                        <div className="mt-3 sm:mt-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
+                          <input
+                            className="rounded-2xl border border-violet-500/15 bg-zinc-950/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-violet-500/30 transition"
+                            placeholder="Talla (S, M, L, 42...)"
+                            value={vf.size}
+                            onChange={(e) => setVariantField(p.id, "size", e.target.value)}
+                          />
+
+                          <input
+                            className="rounded-2xl border border-violet-500/15 bg-zinc-950/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-violet-500/30 transition"
+                            placeholder="Color"
+                            value={vf.color}
+                            onChange={(e) => setVariantField(p.id, "color", e.target.value)}
+                          />
+
+                          <input
+                            inputMode="numeric"
+                            className="rounded-2xl border border-violet-500/15 bg-zinc-950/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-violet-500/30 transition"
+                            placeholder="Stock"
+                            value={vf.stock}
+                            onChange={(e) => setVariantField(p.id, "stock", parseCLP(e.target.value))}
+                          />
+
+                          <input
+                            inputMode="numeric"
+                            className="rounded-2xl border border-violet-500/15 bg-zinc-950/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-violet-500/30 transition"
+                            placeholder="Precio variante (opcional)"
+                            value={vf.price_override ? formatCLP(vf.price_override) : ""}
+                            onChange={(e) => setVariantField(p.id, "price_override", parseCLP(e.target.value))}
+                          />
+
+                          <button
+                            disabled={savingVariantFor === p.id}
+                            onClick={() => saveVariant(p)}
+                            className="col-span-2 sm:col-span-1 rounded-2xl btn-accent px-5 py-2.5 sm:py-3 text-sm hover:opacity-90 disabled:opacity-60"
+                          >
+                            {savingVariantFor === p.id ? "Guardando..." : "Agregar variante"}
+                          </button>
                         </div>
+
+                        <label className="mt-3 inline-flex items-center gap-2 text-sm text-zinc-300">
+                          <input
+                            type="checkbox"
+                            checked={!!vf.is_active}
+                            onChange={(e) => setVariantField(p.id, "is_active", e.target.checked)}
+                          />
+                          Variante activa
+                        </label>
                       </div>
                     </div>
                   </div>
-                );
-              })}
+                </div>
+              );
+            })}
 
-              {filtered.length === 0 ? (
-                <div className="text-sm text-zinc-400">No hay productos con ese filtro.</div>
-              ) : null}
-            </div>
-          )}
-        </section>
-      </main>
-    </div>
+            {filtered.length === 0 ? (
+              <div className="text-sm text-zinc-400">No hay productos con ese filtro.</div>
+            ) : null}
+          </div>
+        )}
+      </section>
+    </AdminLayout>
   );
 }

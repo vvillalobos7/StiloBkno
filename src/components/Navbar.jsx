@@ -1,13 +1,15 @@
-﻿import { Link, NavLink } from "react-router-dom";
+import { Link, NavLink } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useCart } from "../store/cart";
 import { moneyCLP } from "../utils/format";
 import { supabase } from "../lib/supabase";
+import useAdmin from "../hooks/useAdmin";
 
 export default function Navbar({ subtitle = "Drop premium | Streetwear | Tendencia" }) {
   const { count, total } = useCart();
   const [hasSession, setHasSession] = useState(false);
   const [open, setOpen] = useState(false);
+  const { isAdmin } = useAdmin();
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -94,6 +96,18 @@ export default function Navbar({ subtitle = "Drop premium | Streetwear | Tendenc
                 <NavLink to="/profile" className={navClass}>
                   Perfil
                 </NavLink>
+
+                {/* Admin Panel button — only visible for admins */}
+                {isAdmin && (
+                  <Link
+                    to="/admin/dashboard"
+                    className="px-3 py-2 rounded-xl text-sm border border-amber-500/40 text-amber-200 bg-amber-500/10 hover:bg-amber-500/20 hover:border-amber-400/60 flex items-center gap-2 transition shadow-sm shadow-amber-500/10"
+                  >
+                    <span className="text-xs">⚡</span>
+                    <span className="font-semibold">Admin</span>
+                  </Link>
+                )}
+
                 <button
                   onClick={logout}
                   className="px-3 py-2 rounded-xl text-sm border border-white/10 text-zinc-300 hover:bg-white/5 transition"
@@ -198,6 +212,25 @@ export default function Navbar({ subtitle = "Drop premium | Streetwear | Tendenc
                   <NavLink to="/profile" className={mobileNavClass}>
                     👤 Mi perfil
                   </NavLink>
+
+                  {/* Admin Panel link — mobile — only for admins */}
+                  {isAdmin && (
+                    <>
+                      <div className="my-3 border-t border-amber-500/20" />
+                      <NavLink
+                        to="/admin/dashboard"
+                        className={({ isActive }) =>
+                          `block px-4 py-3 rounded-2xl text-sm font-semibold transition border ${
+                            isActive
+                              ? "bg-amber-500/20 text-amber-100 border-amber-500/40 shadow-lg shadow-amber-500/10"
+                              : "text-amber-200 border-amber-500/20 bg-amber-500/5 hover:bg-amber-500/15"
+                          }`
+                        }
+                      >
+                        ⚡ Panel Admin
+                      </NavLink>
+                    </>
+                  )}
 
                   <div className="my-3 border-t border-violet-500/10" />
 
