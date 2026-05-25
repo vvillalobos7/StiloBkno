@@ -69,9 +69,7 @@ export default function AdminLogin() {
     return (
       <div className="min-h-screen grid place-items-center bg-zinc-950 text-zinc-300">
         <div className="text-center space-y-3 animate-fade-in">
-          <div className="h-10 w-10 mx-auto rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-500 grid place-items-center text-white font-black animate-pulse-glow">
-            SB
-          </div>
+          <div className="h-10 w-10 mx-auto rounded-full border-2 border-violet-500/30 border-t-violet-500 animate-spin" />
           <div className="text-sm text-zinc-400">Verificando...</div>
         </div>
       </div>
@@ -88,8 +86,10 @@ export default function AdminLogin() {
               ⚡
             </div>
             <div>
-              <div className="text-xs text-amber-300/70 font-medium">Panel Admin</div>
-              <h2 className="text-xl font-extrabold tracking-tight">StiloBkno</h2>
+              <div className="text-[10px] text-amber-300/70 font-semibold uppercase tracking-normal">Panel Admin</div>
+              <h2 className="font-extrabold tracking-tight text-lg sm:text-xl leading-none text-zinc-100 mt-1.5">
+                Stilo<span className="text-gradient">Bkno</span>
+              </h2>
             </div>
           </div>
 

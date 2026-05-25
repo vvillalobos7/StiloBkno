@@ -1,4 +1,4 @@
-﻿import { Link } from "react-router-dom";
+import { Link } from "react-router-dom";
 
 export default function Footer() {
   return (
@@ -7,13 +7,15 @@ export default function Footer() {
         <div className="flex flex-col md:flex-row gap-8 md:items-start md:justify-between">
           {/* Brand */}
           <div>
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white grid place-items-center font-black text-sm shadow-lg shadow-violet-500/20">
-                SB
+            <div className="flex items-center gap-3.5">
+              <div className="h-12 w-12 rounded-full overflow-hidden border border-amber-500/30 shadow-md shadow-amber-500/10 shrink-0 bg-zinc-950">
+                <img src="/logo.jpg" alt="StiloBkno Logo" className="h-full w-full object-cover" />
               </div>
               <div>
-                <div className="font-extrabold tracking-tight text-lg text-gradient">StiloBkno</div>
-                <div className="text-xs text-zinc-600">Streetwear premium • Drops curados</div>
+                <div className="font-extrabold tracking-tight text-lg leading-none text-zinc-100">
+                  Stilo<span className="text-gradient">Bkno</span>
+                </div>
+                <div className="text-[10px] text-zinc-500 font-bold uppercase tracking-wide mt-1.5">Streetwear premium • Drops curados</div>
               </div>
             </div>
             <p className="mt-3 max-w-xs text-sm text-zinc-500 leading-relaxed">

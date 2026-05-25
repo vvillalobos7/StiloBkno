@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
@@ -27,7 +27,7 @@ const SORT_OPTIONS = [
 ];
 
 export default function Catalog() {
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
   const { add } = useCart();
 
   const [loading, setLoading] = useState(true);
@@ -38,6 +38,8 @@ export default function Catalog() {
 
   const [q, setQ] = useState("");
   const [cat, setCat] = useState("all");
+  const [gender, setGender] = useState("all");
+  const [brand, setBrand] = useState("all");
   const [sort, setSort] = useState("newest");
   const [priceMin, setPriceMin] = useState("");
   const [priceMax, setPriceMax] = useState("");
@@ -50,10 +52,35 @@ export default function Catalog() {
   const [pickerProduct, setPickerProduct] = useState(null);
   const [selectedVariantId, setSelectedVariantId] = useState("");
 
+  const updateParam = (key, value) => {
+    const newParams = new URLSearchParams(params);
+    if (!value || value === "all") {
+      newParams.delete(key);
+    } else {
+      newParams.set(key, value);
+    }
+    setParams(newParams, { replace: true });
+  };
+
   useEffect(() => {
     const urlCat = params.get("cat");
-    if (urlCat) setCat(urlCat);
-  }, [params]);
+    setCat(urlCat || "all");
+
+    const urlGender = params.get("gender");
+    setGender(urlGender || "all");
+
+    const urlBrand = params.get("brand");
+    setBrand(urlBrand || "all");
+
+    const urlQ = params.get("q");
+    setQ(urlQ || "");
+
+    const urlProduct = params.get("product");
+    if (urlProduct && products.length > 0) {
+      const found = products.find((p) => p.id === urlProduct);
+      if (found) setQuick(found);
+    }
+  }, [params, products]);
 
   useEffect(() => {
     (async () => {
@@ -120,7 +147,19 @@ export default function Catalog() {
       const price = Number(p.price ?? 0);
       const okPrice = price >= pMin && price <= pMax;
 
-      return okTerm && okCat && okPrice;
+      const categoryName = categories.find((c) => c.id === p.category_id)?.name || "";
+      const okGender =
+        gender === "all" ||
+        p.name?.toLowerCase().includes(gender.toLowerCase()) ||
+        p.description?.toLowerCase().includes(gender.toLowerCase()) ||
+        categoryName.toLowerCase().includes(gender.toLowerCase());
+
+      const okBrand =
+        brand === "all" ||
+        p.name?.toLowerCase().includes(brand.toLowerCase()) ||
+        p.description?.toLowerCase().includes(brand.toLowerCase());
+
+      return okTerm && okCat && okPrice && okGender && okBrand;
     });
 
     // Sort
@@ -146,7 +185,7 @@ export default function Catalog() {
     }
 
     return result;
-  }, [products, q, cat, sort, priceMin, priceMax]);
+  }, [products, q, cat, gender, brand, sort, priceMin, priceMax, categories]);
 
   const getVariants = (productId) => variantsByProduct[productId] ?? [];
   const getTotalStock = (productId) =>
@@ -195,18 +234,22 @@ export default function Catalog() {
     const chips = [];
     if (cat !== "all") {
       const catName = categories.find((c) => c.id === cat)?.name;
-      if (catName) chips.push({ key: "cat", label: catName, clear: () => setCat("all") });
+      if (catName) chips.push({ key: "cat", label: catName, clear: () => updateParam("cat", null) });
+    }
+    if (gender !== "all") {
+      chips.push({ key: "gender", label: `Género: ${gender === "hombre" ? "Hombre" : "Mujer"}`, clear: () => updateParam("gender", null) });
+    }
+    if (brand !== "all") {
+      chips.push({ key: "brand", label: `Marca: ${brand}`, clear: () => updateParam("brand", null) });
     }
     if (priceMin) chips.push({ key: "pmin", label: `Desde $${moneyCLP(priceMin)}`, clear: () => setPriceMin("") });
     if (priceMax) chips.push({ key: "pmax", label: `Hasta $${moneyCLP(priceMax)}`, clear: () => setPriceMax("") });
-    if (q.trim()) chips.push({ key: "q", label: `"${q.trim()}"`, clear: () => setQ("") });
+    if (q.trim()) chips.push({ key: "q", label: `"${q.trim()}"`, clear: () => { setQ(""); updateParam("q", null); } });
     return chips;
-  }, [cat, priceMin, priceMax, q, categories]);
+  }, [cat, gender, brand, priceMin, priceMax, q, categories, params]);
 
   const clearAll = () => {
-    setQ("");
-    setCat("all");
-    setSort("newest");
+    setParams(new URLSearchParams(), { replace: true });
     setPriceMin("");
     setPriceMax("");
   };
@@ -245,7 +288,11 @@ export default function Catalog() {
                 className="w-full rounded-2xl border border-violet-500/15 bg-zinc-900/40 pl-10 pr-4 py-3 text-sm outline-none focus:ring-2 focus:ring-violet-500/30 transition"
                 placeholder="Buscar producto..."
                 value={q}
-                onChange={(e) => setQ(e.target.value)}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setQ(val);
+                  updateParam("q", val);
+                }}
               />
             </div>
 
@@ -253,7 +300,11 @@ export default function Catalog() {
             <select
               className="rounded-2xl border border-violet-500/15 bg-zinc-900/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-violet-500/30"
               value={cat}
-              onChange={(e) => setCat(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value;
+                setCat(val);
+                updateParam("cat", val);
+              }}
             >
               <option value="all">Todas las categorías</option>
               {categories.map((c) => (

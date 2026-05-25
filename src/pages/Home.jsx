@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
@@ -92,51 +92,63 @@ export default function Home() {
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-40 w-40 rounded-full bg-violet-400/8 blur-[60px]" />
 
             <div className="relative p-6 sm:p-7 md:p-10">
-              <div className="inline-flex items-center gap-2 rounded-full border border-violet-500/20 bg-zinc-950/50 px-3 py-1.5 text-xs text-violet-200 backdrop-blur-sm">
-                <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-                Drop activo • StiloBkno Curated
-              </div>
+              <div className="flex flex-col md:flex-row gap-8 items-center justify-between">
+                <div className="flex-1">
+                  <div className="inline-flex items-center gap-2 rounded-full border border-violet-500/20 bg-zinc-950/50 px-3 py-1.5 text-xs text-violet-200 backdrop-blur-sm">
+                    <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+                    Drop activo • StiloBkno Curated
+                  </div>
 
-              <h1 className="mt-5 text-3xl sm:text-4xl md:text-6xl font-extrabold tracking-tight leading-[1.05]">
-                Tu estilo,{" "}
-                <span className="text-gradient">tu drop.</span>
-              </h1>
+                  <h1 className="mt-5 text-3xl sm:text-4xl md:text-6xl font-extrabold tracking-tight leading-[1.05]">
+                    Tu estilo,{" "}
+                    <span className="text-gradient">tu drop.</span>
+                  </h1>
 
-              <p className="mt-4 max-w-2xl text-sm md:text-base text-zinc-400 leading-relaxed">
-                Streetwear + luxe con vibra premium. Agrega al carrito y coordina por WhatsApp.
-                Drops seleccionados con estilo de marca.
-              </p>
+                  <p className="mt-4 max-w-xl text-sm md:text-base text-zinc-400 leading-relaxed">
+                    Streetwear + luxe con vibra premium. Agrega al carrito y coordina por WhatsApp.
+                    Drops seleccionados con estilo de marca.
+                  </p>
 
-              <div className="mt-5 flex flex-wrap gap-2">
-                {BRAND_CHIPS.map((b) => (
-                  <span
-                    key={b}
-                    className="text-[11px] px-3 py-1.5 rounded-full bg-violet-500/10 border border-violet-500/15 text-violet-200/80 hover:bg-violet-500/20 hover:text-violet-100 transition cursor-default"
-                  >
-                    {b}
-                  </span>
-                ))}
-              </div>
+                  <div className="mt-5 flex flex-wrap gap-2">
+                    {BRAND_CHIPS.map((b) => (
+                      <span
+                        key={b}
+                        className="text-[11px] px-3 py-1.5 rounded-full bg-violet-500/10 border border-violet-500/15 text-violet-200/80 hover:bg-violet-500/20 hover:text-violet-100 transition cursor-default"
+                      >
+                        {b}
+                      </span>
+                    ))}
+                  </div>
 
-              <div className="mt-7 flex flex-col sm:flex-row gap-3">
-                <Link
-                  to="/catalog"
-                  className="rounded-2xl btn-accent px-7 py-3.5 text-center text-sm"
-                >
-                  Ver catálogo →
-                </Link>
-                <Link
-                  to="/checkout"
-                  className="rounded-2xl border border-violet-500/20 px-7 py-3.5 text-violet-200 hover:bg-violet-500/10 text-center text-sm transition"
-                >
-                  Ir al carrito
-                </Link>
-                <a
-                  href="#como-comprar"
-                  className="rounded-2xl border border-white/10 px-7 py-3.5 text-zinc-300 hover:bg-white/5 text-center text-sm transition"
-                >
-                  Cómo comprar
-                </a>
+                  <div className="mt-7 flex flex-col sm:flex-row gap-3">
+                    <Link
+                      to="/catalog"
+                      className="rounded-2xl btn-accent px-7 py-3.5 text-center text-sm"
+                    >
+                      Ver catálogo →
+                    </Link>
+                    <Link
+                      to="/checkout"
+                      className="rounded-2xl border border-violet-500/20 px-7 py-3.5 text-violet-200 hover:bg-violet-500/10 text-center text-sm transition"
+                    >
+                      Ir al carrito
+                    </Link>
+                    <a
+                      href="#como-comprar"
+                      className="rounded-2xl border border-white/10 px-7 py-3.5 text-zinc-300 hover:bg-white/5 text-center text-sm transition"
+                    >
+                      Cómo comprar
+                    </a>
+                  </div>
+                </div>
+
+                {/* Large floating coin logo */}
+                <div className="shrink-0 relative hidden md:block">
+                  <div className="absolute -inset-4 rounded-full bg-gradient-to-tr from-amber-500/10 to-violet-500/10 blur-[30px]" />
+                  <div className="relative h-44 w-44 rounded-full overflow-hidden border-3 border-amber-400/40 shadow-2xl shadow-amber-500/30 bg-zinc-950 animate-float">
+                    <img src="/logo.jpg" alt="StiloBkno Medallion" className="h-full w-full object-cover" />
+                  </div>
+                </div>
               </div>
 
               <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-3">

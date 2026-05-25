@@ -23,18 +23,15 @@ export default function AdminLayout({ title, subtitle, children, rightSlot }) {
       <header className="sticky top-0 z-40 border-b border-violet-500/10 glass">
         <div className="mx-auto max-w-6xl px-3 sm:px-4 py-2.5 sm:py-3 flex items-center gap-2 sm:gap-3">
           {/* Logo → Home */}
-          <Link to="/" className="flex items-center gap-2 sm:gap-3 group shrink-0" title="Volver a la tienda">
-            <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-xl sm:rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white grid place-items-center font-black tracking-tight text-xs sm:text-sm shadow-lg shadow-violet-500/20 group-hover:shadow-violet-500/40 transition-shadow">
-              SB
-            </div>
-            <div className="hidden sm:block">
-              <div className="font-extrabold tracking-tight text-lg leading-none">
-                StiloBkno
-                <span className="ml-2 text-[10px] px-2 py-0.5 rounded-full bg-gradient-to-r from-amber-500/20 to-orange-500/20 border border-amber-500/30 text-amber-200">
+          <Link to="/" className="flex items-center group shrink-0 select-none" title="Volver a la tienda">
+            <div>
+              <div className="font-extrabold tracking-tight text-lg sm:text-xl leading-none text-zinc-100 group-hover:text-violet-300 transition-colors flex items-center gap-1.5">
+                Stilo<span className="text-gradient">Bkno</span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 font-semibold uppercase tracking-normal align-middle">
                   ADMIN
                 </span>
               </div>
-              <div className="text-xs text-zinc-500 truncate max-w-[200px]">
+              <div className="text-xs text-zinc-500 truncate max-w-[200px] mt-1.5 sm:mt-1">
                 {title ?? "Panel de administración"}
               </div>
             </div>
@@ -136,17 +133,14 @@ function MobileAdminMenu({ logout }) {
           <div className="absolute top-0 right-0 h-full w-[280px] max-w-[85vw] bg-zinc-950 border-l border-violet-500/15 animate-slide-in-right overflow-y-auto">
             {/* Drawer header */}
             <div className="flex items-center justify-between p-4 border-b border-violet-500/10">
-              <div className="flex items-center gap-2">
-                <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-500 text-white grid place-items-center font-black text-xs shadow-lg shadow-violet-500/20">
-                  SB
+                <div className="font-extrabold tracking-tight text-zinc-100 text-sm">
+                  Stilo<span className="text-gradient">Bkno</span>
                 </div>
-                <div>
-                  <div className="font-extrabold tracking-tight text-sm text-gradient">StiloBkno</div>
-                  <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-200">
+                <div className="mt-1">
+                  <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-300 font-semibold uppercase tracking-normal">
                     ADMIN
                   </span>
                 </div>
-              </div>
               <button
                 onClick={() => setOpen(false)}
                 className="h-9 w-9 rounded-xl border border-violet-500/15 grid place-items-center text-zinc-300 hover:bg-violet-500/10 transition"
