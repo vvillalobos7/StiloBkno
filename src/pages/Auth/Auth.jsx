@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import Navbar from "../../components/Navbar";
 import Footer from "../../components/Footer";
@@ -20,6 +20,7 @@ export default function Auth() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [phone, setPhone] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => {
@@ -52,6 +53,7 @@ export default function Auth() {
     if (!email.trim()) return showError("Ingresa tu email.");
     if (!phone.trim()) return showError("Ingresa tu teléfono.");
     if (!password || password.length < 6) return showError("La contraseña debe tener al menos 6 caracteres.");
+    if (password !== confirmPassword) return showError("Las contraseñas no coinciden.");
 
     setLoading(true);
     try {
@@ -71,15 +73,24 @@ export default function Auth() {
 
       // If user is created and we have a session, save profile data
       if (data?.user) {
+        // Try upsert first, fallback to insert if it fails
+        const profilePayload = {
+          id: data.user.id,
+          full_name: fullName,
+          phone: phone.trim(),
+        };
+
         const { error: profileErr } = await supabase
           .from("profiles")
-          .upsert({
-            id: data.user.id,
-            full_name: fullName,
-            phone: phone.trim(),
-          });
+          .upsert(profilePayload);
 
-        if (profileErr) console.error("Error guardando perfil:", profileErr);
+        if (profileErr) {
+          console.warn("Upsert falló, intentando insert:", profileErr.message);
+          const { error: insertErr } = await supabase
+            .from("profiles")
+            .insert(profilePayload);
+          if (insertErr) console.error("Error guardando perfil:", insertErr);
+        }
       }
 
       // If email confirmation is required
@@ -135,20 +146,20 @@ export default function Auth() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setMode("login")}
-              className={`flex-1 rounded-2xl px-4 py-2.5 text-sm font-semibold border transition ${
+              className={`flex-1 rounded-xl px-4 py-2 text-sm font-medium border transition ${
                 mode === "login"
                   ? "bg-white text-zinc-950 border-white"
-                  : "border-violet-500/15 text-zinc-200 hover:bg-violet-500/10"
+                  : "border-white/12 text-zinc-300 hover:bg-white/5"
               }`}
             >
               Iniciar sesión
             </button>
             <button
               onClick={() => setMode("register")}
-              className={`flex-1 rounded-2xl px-4 py-2.5 text-sm font-semibold border transition ${
+              className={`flex-1 rounded-xl px-4 py-2 text-sm font-medium border transition ${
                 mode === "register"
                   ? "bg-white text-zinc-950 border-white"
-                  : "border-violet-500/15 text-zinc-200 hover:bg-violet-500/10"
+                  : "border-white/12 text-zinc-300 hover:bg-white/5"
               }`}
             >
               Crear cuenta
@@ -220,12 +231,31 @@ export default function Auth() {
               )}
             </label>
 
+            {mode === "register" && (
+              <label className="grid gap-1.5">
+                <span className="text-xs text-zinc-400">Repetir contraseña *</span>
+                <input
+                  type="password"
+                  className="rounded-2xl border border-violet-500/15 bg-zinc-950/40 px-4 py-3 text-sm outline-none focus:ring-2 focus:ring-violet-500/30"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="••••••••"
+                />
+                {confirmPassword && password !== confirmPassword && (
+                  <span className="text-[11px] text-rose-400">Las contraseñas no coinciden.</span>
+                )}
+                {confirmPassword && password === confirmPassword && confirmPassword.length >= 6 && (
+                  <span className="text-[11px] text-emerald-400">✓ Contraseñas coinciden.</span>
+                )}
+              </label>
+            )}
+
             {mode === "login" ? (
               <>
                 <button
                   disabled={loading}
                   onClick={login}
-                  className="rounded-2xl btn-accent px-6 py-3 hover:opacity-90 disabled:opacity-60 transition"
+                  className="rounded-xl btn-accent px-5 py-2.5 disabled:opacity-60 transition"
                 >
                   {loading ? "Entrando..." : "Entrar"}
                 </button>
@@ -233,7 +263,7 @@ export default function Auth() {
                 <button
                   disabled={loading}
                   onClick={forgotPassword}
-                  className="rounded-2xl border border-violet-500/15 px-6 py-3 text-sm text-zinc-200 hover:bg-violet-500/10 disabled:opacity-60 transition"
+                  className="rounded-xl btn-ghost px-5 py-2.5 text-sm disabled:opacity-60"
                 >
                   Olvidé mi contraseña
                 </button>
@@ -242,7 +272,7 @@ export default function Auth() {
               <button
                 disabled={loading}
                 onClick={register}
-                className="rounded-2xl btn-accent px-6 py-3 hover:opacity-90 disabled:opacity-60 transition"
+                className="rounded-xl btn-accent px-5 py-2.5 disabled:opacity-60 transition"
               >
                 {loading ? "Creando cuenta..." : "Crear cuenta"}
               </button>

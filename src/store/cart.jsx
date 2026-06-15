@@ -1,11 +1,13 @@
-﻿import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 
 const CartCtx = createContext(null);
 
 const LS_KEY = "stilobkno_cart_v2";
 
 function makeKey(item) {
-  return item.variant_id ? `${item.id}::${item.variant_id}` : `${item.id}`;
+  if (item.variant_id) return `${item.id}::${item.variant_id}`;
+  if (item.size) return `${item.id}::size-${item.size}`;
+  return `${item.id}`;
 }
 
 export function CartProvider({ children }) {

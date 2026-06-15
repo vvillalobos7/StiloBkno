@@ -1,4 +1,4 @@
-﻿import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 
 export default function HeroBanner({ banners = [] }) {
@@ -69,7 +69,7 @@ export default function HeroBanner({ banners = [] }) {
             {current.link && (
               <Link
                 to={current.link}
-                className="mt-4 inline-flex rounded-2xl bg-white text-zinc-950 font-extrabold px-6 py-3 text-sm hover:opacity-90 transition animate-slide-up"
+                className="mt-4 inline-flex rounded-xl btn-accent px-5 py-2.5 text-sm animate-slide-up"
                 style={{ animationDelay: "0.2s" }}
               >
                 Ver más →

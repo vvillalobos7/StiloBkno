@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
@@ -43,7 +43,15 @@ export default function Profile() {
       .single();
 
     if (error) console.error(error);
-    const p = data ?? { id: u.id, full_name: "", phone: "", avatar_path: null };
+
+    // Fallback to auth user_metadata if profile fields are empty
+    const meta = u.user_metadata ?? {};
+    const p = {
+      id: u.id,
+      full_name: data?.full_name || meta.full_name || "",
+      phone: data?.phone || meta.phone || "",
+      avatar_path: data?.avatar_path ?? null,
+    };
     setProfile(p);
 
     if (p.avatar_path) {
@@ -135,7 +143,7 @@ export default function Profile() {
             {user ? (
               <button
                 onClick={signOut}
-                className="rounded-2xl border border-violet-500/15 px-4 py-2 text-sm text-zinc-200 hover:bg-violet-500/10"
+                className="rounded-xl btn-secondary px-3.5 py-1.5 text-sm"
               >
                 Cerrar sesión
               </button>
@@ -203,13 +211,13 @@ export default function Profile() {
               <div className="flex flex-wrap gap-2">
                 <Link
                   to="/addresses"
-                  className="rounded-2xl border border-violet-500/15 px-4 py-2.5 text-sm text-zinc-200 hover:bg-violet-500/10 transition"
+                  className="rounded-xl btn-secondary px-3.5 py-2 text-sm"
                 >
                   📍 Mis direcciones
                 </Link>
                 <Link
                   to="/my-orders"
-                  className="rounded-2xl border border-violet-500/15 px-4 py-2.5 text-sm text-zinc-200 hover:bg-violet-500/10 transition"
+                  className="rounded-xl btn-secondary px-3.5 py-2 text-sm"
                 >
                   📦 Mis pedidos
                 </Link>
@@ -218,7 +226,7 @@ export default function Profile() {
               <button
                 onClick={save}
                 disabled={saving}
-                className="rounded-2xl btn-accent px-6 py-3 hover:opacity-90 disabled:opacity-60 transition"
+                className="rounded-xl btn-accent px-5 py-2.5 disabled:opacity-60 transition"
               >
                 {saving ? "Guardando..." : "Guardar cambios"}
               </button>

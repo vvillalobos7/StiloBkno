@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
@@ -354,7 +354,7 @@ export default function Checkout() {
                 {!user && (
                   <Link
                     to="/auth"
-                    className="rounded-2xl border border-violet-500/15 px-4 py-2 text-sm text-zinc-200 hover:bg-violet-500/10"
+                    className="rounded-xl btn-secondary px-4 py-2 text-sm"
                   >
                     Iniciar sesión
                   </Link>
@@ -432,10 +432,10 @@ export default function Checkout() {
                       <button
                         key={a.id}
                         onClick={() => handleAddressChange(a.id)}
-                        className={`text-xs px-3 py-2 rounded-2xl border transition ${
+                        className={`text-xs px-3 py-2 rounded-lg border transition ${
                           selectedAddressId === a.id && selectedAddressId !== "new"
-                            ? "bg-violet-600 text-white border-violet-500 font-bold shadow-lg shadow-violet-500/20"
-                            : "border-violet-500/15 text-zinc-200 hover:bg-violet-500/10"
+                            ? "bg-violet-600 text-white border-violet-500 font-semibold"
+                            : "border-white/12 text-zinc-200 hover:bg-white/5"
                         }`}
                       >
                         📍 {a.label}{a.is_default ? " ★" : ""}
@@ -444,10 +444,10 @@ export default function Checkout() {
                     ))}
                     <button
                       onClick={() => handleAddressChange("new")}
-                      className={`text-xs px-3 py-2 rounded-2xl border transition ${
+                      className={`text-xs px-3 py-2 rounded-lg border transition ${
                         selectedAddressId === "new"
-                          ? "bg-violet-600 text-white border-violet-500 font-bold shadow-lg shadow-violet-500/20"
-                          : "border-violet-500/15 text-zinc-200 hover:bg-violet-500/10"
+                          ? "bg-violet-600 text-white border-violet-500 font-semibold"
+                          : "border-white/12 text-zinc-200 hover:bg-white/5"
                       }`}
                     >
                       ＋ Nueva dirección
@@ -539,7 +539,7 @@ export default function Checkout() {
               <button
                 onClick={placeOrder}
                 disabled={!canCheckout || loading}
-                className="mt-4 w-full rounded-2xl btn-accent px-6 py-3.5 hover:opacity-90 disabled:opacity-60 transition flex items-center justify-center gap-2"
+                className="mt-4 w-full rounded-xl btn-accent px-6 py-3 disabled:opacity-60 transition flex items-center justify-center gap-2"
               >
                 {loading ? (
                   <>
@@ -591,20 +591,20 @@ export default function Checkout() {
                     <div className="mt-3 flex items-center gap-2">
                       <button
                         onClick={() => dec(it.key)}
-                        className="rounded-xl border border-violet-500/15 px-3 py-1.5 text-sm text-zinc-200 hover:bg-violet-500/10 transition"
+                        className="rounded-lg border border-white/12 px-2.5 py-1 text-sm text-zinc-200 hover:bg-white/5 transition"
                       >
                         −
                       </button>
                       <div className="text-sm min-w-[24px] text-center font-semibold">{it.qty}</div>
                       <button
                         onClick={() => inc(it.key)}
-                        className="rounded-xl border border-violet-500/15 px-3 py-1.5 text-sm text-zinc-200 hover:bg-violet-500/10 transition"
+                        className="rounded-lg border border-white/12 px-2.5 py-1 text-sm text-zinc-200 hover:bg-white/5 transition"
                       >
                         +
                       </button>
                       <button
                         onClick={() => remove(it.key)}
-                        className="ml-auto rounded-xl border border-rose-400/20 px-3 py-1.5 text-xs text-rose-300 hover:bg-rose-400/10 transition"
+                        className="ml-auto rounded-lg btn-danger px-2.5 py-1 text-xs"
                       >
                         Quitar
                       </button>

@@ -4,7 +4,6 @@ import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import Loading from "../components/Loading";
 import ProductCard from "../components/ProductCard";
-import ProductModal from "../components/ProductModal";
 import HeroBanner from "../components/HeroBanner";
 import SR from "../components/ScrollReveal";
 import { supabase, BUSINESS_ID, STORAGE_BUCKET } from "../lib/supabase";
@@ -19,7 +18,6 @@ export default function Home() {
   const [categories, setCategories] = useState([]);
   const [featured, setFeatured] = useState([]);
   const [banners, setBanners] = useState([]);
-  const [quick, setQuick] = useState(null);
 
   const imageUrl = (path) => {
     if (!path) return null;
@@ -62,7 +60,7 @@ export default function Home() {
 
       const { data: prods, error: prodsErr } = await supabase
         .from("products")
-        .select("id,name,description,price,category_id,image_path,created_at")
+        .select("id,name,description,price,category_id,image_path,created_at,stock,sizes")
         .eq("business_id", BUSINESS_ID)
         .eq("is_active", true)
         .order("created_at", { ascending: false })
@@ -123,19 +121,19 @@ export default function Home() {
                   <div className="mt-7 flex flex-col sm:flex-row gap-3">
                     <Link
                       to="/catalog"
-                      className="rounded-2xl btn-accent px-7 py-3.5 text-center text-sm"
+                      className="rounded-xl btn-accent px-6 py-3 text-center text-sm"
                     >
                       Ver catálogo →
                     </Link>
                     <Link
                       to="/checkout"
-                      className="rounded-2xl border border-violet-500/20 px-7 py-3.5 text-violet-200 hover:bg-violet-500/10 text-center text-sm transition"
+                      className="rounded-xl btn-secondary px-6 py-3 text-center text-sm"
                     >
                       Ir al carrito
                     </Link>
                     <a
                       href="#como-comprar"
-                      className="rounded-2xl border border-white/10 px-7 py-3.5 text-zinc-300 hover:bg-white/5 text-center text-sm transition"
+                      className="rounded-xl btn-ghost px-6 py-3 text-center text-sm"
                     >
                       Cómo comprar
                     </a>
@@ -228,8 +226,13 @@ export default function Home() {
                 <ProductCard
                   product={p}
                   imageUrl={imageUrl}
-                  onAdd={() => add(p)}
-                  onQuickView={() => setQuick(p)}
+                  onAdd={() => add({
+                    id: p.id,
+                    name: p.name,
+                    price: Number(p.price ?? 0),
+                    image_path: p.image_path ?? null,
+                    stock: Number(p.stock ?? 0),
+                  })}
                 />
               </SR>
             ))}
@@ -264,12 +267,12 @@ export default function Home() {
                   </div>
 
                   <div className="mt-7 flex flex-wrap gap-3">
-                    <Link to="/catalog" className="rounded-2xl btn-accent px-6 py-3 text-sm">
+                    <Link to="/catalog" className="rounded-xl btn-accent px-5 py-2.5 text-sm">
                       Ir al catálogo
                     </Link>
                     <Link
                       to="/checkout"
-                      className="rounded-2xl border border-violet-500/20 px-6 py-3 text-violet-200 hover:bg-violet-500/10 text-sm transition"
+                      className="rounded-xl btn-secondary px-5 py-2.5 text-sm"
                     >
                       Checkout
                     </Link>
@@ -296,14 +299,6 @@ export default function Home() {
       </section>
 
       <Footer />
-
-      <ProductModal
-        open={!!quick}
-        product={quick}
-        imageUrl={imageUrl}
-        onAdd={() => { add(quick); setQuick(null); }}
-        onClose={() => setQuick(null)}
-      />
     </div>
   );
 }

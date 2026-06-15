@@ -1,9 +1,10 @@
-﻿import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { CartProvider } from "./store/cart";
 import { ToastProvider } from "./components/Toast";
 
 import Home from "./pages/Home";
 import Catalog from "./pages/Catalog";
+import ProductPage from "./pages/ProductPage";
 import Checkout from "./pages/Checkout";
 
 import Auth from "./pages/Auth/Auth";
@@ -30,6 +31,7 @@ export default function App() {
             {/* Public */}
             <Route path="/" element={<Home />} />
             <Route path="/catalog" element={<Catalog />} />
+            <Route path="/producto/:id" element={<ProductPage />} />
             <Route path="/checkout" element={<Checkout />} />
 
             {/* User */}

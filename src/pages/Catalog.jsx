@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, Link } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import Loading from "../components/Loading";
 import ProductCard from "../components/ProductCard";
-import ProductModal from "../components/ProductModal";
 import SR from "../components/ScrollReveal";
 import { supabase, BUSINESS_ID, STORAGE_BUCKET } from "../lib/supabase";
 import { useCart } from "../store/cart";
@@ -46,7 +45,7 @@ export default function Catalog() {
   const [viewMode, setViewMode] = useState("grid"); // grid | list
   const [showFilters, setShowFilters] = useState(false);
 
-  const [quick, setQuick] = useState(null);
+  const [quick, setQuick] = useState(null); // kept for URL param handling
 
   // selector de variante
   const [pickerProduct, setPickerProduct] = useState(null);
@@ -97,7 +96,7 @@ export default function Catalog() {
 
       const { data: prods, error: prodsErr } = await supabase
         .from("products")
-        .select("id,name,description,price,category_id,image_path,created_at,is_active")
+        .select("id,name,description,price,category_id,image_path,created_at,is_active,stock,sizes")
         .eq("business_id", BUSINESS_ID)
         .eq("is_active", true)
         .order("created_at", { ascending: false });
@@ -450,9 +449,9 @@ export default function Catalog() {
                   className="rounded-2xl border border-white/10 bg-zinc-900/30 p-4 flex gap-4 items-start hover:bg-zinc-900/50 transition"
                 >
                   {/* Image */}
-                  <button
-                    onClick={() => setQuick(p)}
-                    className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl overflow-hidden bg-zinc-800 shrink-0"
+                  <Link
+                    to={`/producto/${p.id}`}
+                    className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl overflow-hidden bg-zinc-800 shrink-0 block"
                   >
                     {p.image_path ? (
                       <img
@@ -464,7 +463,7 @@ export default function Catalog() {
                     ) : (
                       <div className="h-full grid place-items-center text-zinc-500 text-xs">Sin img</div>
                     )}
-                  </button>
+                  </Link>
 
                   {/* Info */}
                   <div className="flex-1 min-w-0">
@@ -498,12 +497,12 @@ export default function Catalog() {
                       >
                         Agregar
                       </button>
-                      <button
-                        onClick={() => setQuick(p)}
+                      <Link
+                        to={`/producto/${p.id}`}
                         className="rounded-xl border border-white/10 px-3 py-1.5 text-sm text-zinc-200 hover:bg-white/5"
                       >
                         👁 Ver
-                      </button>
+                      </Link>
                     </div>
                   </div>
                 </div>
@@ -529,7 +528,6 @@ export default function Catalog() {
                     product={productForCard}
                     imageUrl={imageUrl}
                     onAdd={() => openVariantPicker(p)}
-                    onQuickView={() => setQuick(p)}
                   />
 
                   <div className="mt-2 flex flex-wrap gap-2">
@@ -554,18 +552,6 @@ export default function Catalog() {
       </section>
 
       <Footer />
-
-      <ProductModal
-        open={!!quick}
-        product={quick}
-        imageUrl={imageUrl}
-        onAdd={() => {
-          if (!quick) return;
-          openVariantPicker(quick);
-          setQuick(null);
-        }}
-        onClose={() => setQuick(null)}
-      />
 
       {/* Modal selector de variante */}
       {pickerProduct ? (

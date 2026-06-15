@@ -169,7 +169,7 @@ export default function AdminBanners() {
           </div>
           <button
             onClick={openNew}
-            className="rounded-2xl btn-accent text-sm px-4 sm:px-5 py-2 sm:py-2.5 hover:opacity-90 transition"
+            className="rounded-xl btn-accent text-sm px-4 py-2 transition"
           >
             + Nuevo banner
           </button>
@@ -244,19 +244,19 @@ export default function AdminBanners() {
                     <div className="mt-3 flex flex-wrap gap-2">
                       <button
                         onClick={() => openEdit(b)}
-                        className="rounded-xl border border-violet-500/15 px-3 py-1.5 text-xs text-zinc-200 hover:bg-violet-500/10 transition"
+                        className="rounded-lg btn-secondary px-3 py-1.5 text-xs"
                       >
                         Editar
                       </button>
                       <button
                         onClick={() => toggleActive(b)}
-                        className="rounded-xl border border-violet-500/15 px-3 py-1.5 text-xs text-zinc-200 hover:bg-violet-500/10 transition"
+                        className="rounded-lg btn-secondary px-3 py-1.5 text-xs"
                       >
                         {b.is_active ? "Desactivar" : "Activar"}
                       </button>
                       <button
                         onClick={() => deleteBanner(b)}
-                        className="rounded-xl border border-rose-400/20 px-3 py-1.5 text-xs text-rose-300 hover:bg-rose-400/10 transition"
+                        className="rounded-lg btn-danger px-3 py-1.5 text-xs"
                       >
                         Eliminar
                       </button>
@@ -284,7 +284,7 @@ export default function AdminBanners() {
               </h3>
               <button
                 onClick={() => setShowForm(false)}
-                className="h-9 w-9 rounded-xl border border-violet-500/15 grid place-items-center text-zinc-300 hover:bg-violet-500/10 transition"
+                className="h-9 w-9 rounded-lg border border-white/10 grid place-items-center text-zinc-300 hover:bg-white/5 transition"
               >
                 ✕
               </button>
@@ -365,13 +365,13 @@ export default function AdminBanners() {
                 <button
                   onClick={saveBanner}
                   disabled={saving}
-                  className="flex-1 rounded-2xl btn-accent py-3 hover:opacity-90 disabled:opacity-60 transition"
+                  className="flex-1 rounded-xl btn-accent py-2.5 disabled:opacity-60 transition"
                 >
                   {saving ? "Guardando..." : form.id ? "Actualizar" : "Crear banner"}
                 </button>
                 <button
                   onClick={() => setShowForm(false)}
-                  className="rounded-2xl border border-violet-500/15 px-5 py-3 text-sm text-zinc-200 hover:bg-violet-500/10 transition"
+                  className="rounded-xl btn-secondary px-5 py-2.5 text-sm"
                 >
                   Cancelar
                 </button>

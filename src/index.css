@@ -200,29 +200,78 @@ body {
   box-shadow: 0 12px 40px rgba(139,92,246,0.12), 0 4px 12px rgba(0,0,0,0.3);
 }
 
-/* Accent button */
+/* ── Buttons ── */
+
+/* Primary — solid, confident, no flashy gradients */
 .btn-accent {
-  background: linear-gradient(135deg, #8b5cf6, #a855f7);
+  background: #8b5cf6;
   color: white;
-  font-weight: 800;
-  transition: all 0.2s ease;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  transition: background 0.15s ease, transform 0.15s ease;
 }
 .btn-accent:hover {
-  background: linear-gradient(135deg, #7c3aed, #9333ea);
-  box-shadow: 0 4px 20px rgba(139,92,246,0.4);
+  background: #7c3aed;
+  transform: translateY(-1px);
 }
 .btn-accent:active {
-  transform: scale(0.98);
+  background: #6d28d9;
+  transform: translateY(0);
 }
 
-/* Gold CTA button */
+/* Secondary — outlined, clean */
+.btn-secondary {
+  background: transparent;
+  color: #d4d4d8;
+  border: 1px solid rgba(255,255,255,0.12);
+  font-weight: 500;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.btn-secondary:hover {
+  background: rgba(255,255,255,0.05);
+  border-color: rgba(255,255,255,0.2);
+  color: #fafafa;
+}
+.btn-secondary:active {
+  background: rgba(255,255,255,0.08);
+}
+
+/* Ghost — minimal, text-only feel */
+.btn-ghost {
+  background: transparent;
+  color: #a1a1aa;
+  font-weight: 500;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+.btn-ghost:hover {
+  color: #e4e4e7;
+  background: rgba(255,255,255,0.04);
+}
+
+/* Danger — for destructive actions */
+.btn-danger {
+  background: transparent;
+  color: #fca5a5;
+  border: 1px solid rgba(248,113,113,0.2);
+  font-weight: 500;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.btn-danger:hover {
+  background: rgba(248,113,113,0.08);
+  border-color: rgba(248,113,113,0.35);
+}
+
+/* Gold CTA — toned down */
 .btn-gold {
-  background: linear-gradient(135deg, #f59e0b, #eab308);
+  background: #f59e0b;
   color: #18181b;
-  font-weight: 800;
-  transition: all 0.2s ease;
+  font-weight: 600;
+  transition: background 0.15s ease, transform 0.15s ease;
 }
 .btn-gold:hover {
-  background: linear-gradient(135deg, #d97706, #ca8a04);
-  box-shadow: 0 4px 20px rgba(245,158,11,0.35);
+  background: #d97706;
+  transform: translateY(-1px);
+}
+.btn-gold:active {
+  transform: translateY(0);
 }
